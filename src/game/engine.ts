@@ -53,9 +53,7 @@ export interface GameEvents {
   onVictory: (wave: number) => void // 达到地图波数上限
 }
 
-const GROUND_COLOR = 0x0c1428
-const PATH_COLOR = 0x1d2c52
-const BASE_COLOR = 0x4fd1ff
+const PATH_COLOR = 0xffd166 // 糖果黄路径
 
 export class TowerGame {
   renderer: THREE.WebGLRenderer
@@ -112,23 +110,26 @@ export class TowerGame {
     this.camera.lookAt(0, 0, 0)
 
     this.scene.add(this.group)
-    // 轻雾：远处可见但柔和（密度从 0.016 降到 0.007）
-    this.scene.fog = new THREE.FogExp2(0x05070f, 0.007)
-    // 程序化星云天空背景（非纯黑）
+    // 轻雾：柔和彩色雾（糖果色）
+    this.scene.fog = new THREE.FogExp2(0x2a2a6a, 0.006)
+    // 彩色童趣星云天空背景
     this.buildNebulaBackground()
 
-    // 灯光
-    const hemi = new THREE.HemisphereLight(0x8899ff, 0x14204a, 0.9)
+    // 明亮彩色灯光（卡通感）
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x88bbff, 1.1)
     this.scene.add(hemi)
-    const dir = new THREE.DirectionalLight(0xfff2e0, 1.3)
+    const dir = new THREE.DirectionalLight(0xfff8e0, 1.5)
     dir.position.set(10, 20, 8)
     dir.castShadow = true
     dir.shadow.mapSize.set(1024, 1024)
     this.scene.add(dir)
-    // 冷色补光
-    const rim = new THREE.PointLight(0x4fd1ff, 0.6, 50)
-    rim.position.set(-12, 8, -10)
-    this.scene.add(rim)
+    // 彩色补光：蓝+粉
+    const rimBlue = new THREE.PointLight(0x4fd1ff, 0.7, 60)
+    rimBlue.position.set(-14, 10, -12)
+    this.scene.add(rimBlue)
+    const rimPink = new THREE.PointLight(0xff9df5, 0.5, 60)
+    rimPink.position.set(14, 8, 12)
+    this.scene.add(rimPink)
 
     // 动态星空背景（多层）
     this.buildStarfield()
@@ -136,10 +137,29 @@ export class TowerGame {
     // 空间站漂浮装饰（背景氛围）
     this.buildSpaceDecor()
 
-    // 地面 + 路径
+    // 地面 + 路径（彩色童趣渐变地面）
+    const groundCanvas = document.createElement('canvas')
+    groundCanvas.width = 512
+    groundCanvas.height = 512
+    const gctx = groundCanvas.getContext('2d')!
+    const gg = gctx.createRadialGradient(256, 256, 50, 256, 256, 360)
+    gg.addColorStop(0, '#3a5a8a')
+    gg.addColorStop(0.5, '#2a3a6a')
+    gg.addColorStop(1, '#1a2a52')
+    gctx.fillStyle = gg
+    gctx.fillRect(0, 0, 512, 512)
+    // 装饰小点
+    for (let i = 0; i < 80; i++) {
+      gctx.fillStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.15})`
+      gctx.beginPath()
+      gctx.arc(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 2, 0, Math.PI * 2)
+      gctx.fill()
+    }
+    const groundTex = new THREE.CanvasTexture(groundCanvas)
+    groundTex.colorSpace = THREE.SRGBColorSpace
     this.ground = new THREE.Mesh(
       new THREE.PlaneGeometry(44, 44),
-      new THREE.MeshStandardMaterial({ color: GROUND_COLOR, roughness: 0.92, metalness: 0.1 }),
+      new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.85, metalness: 0.05 }),
     )
     this.ground.rotation.x = -Math.PI / 2
     this.ground.receiveShadow = true
@@ -150,10 +170,10 @@ export class TowerGame {
     this.base = this.buildBase()
     this.group.add(this.base)
 
-    // 网格辅助线（可选放置辅助）
-    const grid = new THREE.GridHelper(44, 22, 0x1a2b52, 0x101a35)
+    // 网格辅助线（可选放置辅助，柔和亮色）
+    const grid = new THREE.GridHelper(44, 22, 0x88bbff, 0x3a5a8a)
     ;(grid.material as THREE.Material).transparent = true
-    ;(grid.material as THREE.Material).opacity = 0.45
+    ;(grid.material as THREE.Material).opacity = 0.5
     this.group.add(grid)
 
     // 交互
@@ -176,10 +196,10 @@ export class TowerGame {
     }
     this.pathLen = len
 
-    // 用曲线沿路径放置圆盘，形成连续路径
+    // 用曲线沿路径放置圆盘，形成连续路径（糖果色带发光）
     const curve = new THREE.CatmullRomCurve3(this.pathPoints)
     const discGeo = new THREE.CircleGeometry(1.3, 24)
-    const mat = new THREE.MeshStandardMaterial({ color: PATH_COLOR, roughness: 0.9 })
+    const mat = new THREE.MeshStandardMaterial({ color: PATH_COLOR, roughness: 0.7, emissive: 0xffd166, emissiveIntensity: 0.25 })
     const samples = 60
     for (let i = 0; i <= samples; i++) {
       const t = i / samples
@@ -196,21 +216,29 @@ export class TowerGame {
     const g = new THREE.Group()
     const [bx, bz] = basePosition(this.map)
     g.position.set(bx, 0.6, bz)
-    // 圆顶基地
+    // 圆顶基地（粉红糖果色）
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(1.6, 20, 14),
-      new THREE.MeshStandardMaterial({ color: BASE_COLOR, emissive: 0x2a7fbf, emissiveIntensity: 0.4, roughness: 0.4 }),
+      new THREE.MeshStandardMaterial({ color: 0xff6b8b, emissive: 0xff6b8b, emissiveIntensity: 0.5, roughness: 0.35 }),
     )
     dome.position.y = 0.6
     dome.castShadow = true
     g.add(dome)
+    // 发光环
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(2.0, 0.15, 8, 24),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x4fd1ff, emissiveIntensity: 0.6 }),
+      new THREE.MeshStandardMaterial({ color: 0x4fd1ff, emissive: 0x4fd1ff, emissiveIntensity: 0.7 }),
     )
     ring.rotation.x = Math.PI / 2
     ring.position.y = 0.2
     g.add(ring)
+    // 顶部小旗（童趣）
+    const flag = new THREE.Mesh(
+      new THREE.ConeGeometry(0.5, 0.8, 4),
+      new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffd166, emissiveIntensity: 0.5 }),
+    )
+    flag.position.y = 2.0
+    g.add(flag)
     return g
   }
 
@@ -229,43 +257,44 @@ export class TowerGame {
     canvas.width = 1024
     canvas.height = 512
     const ctx = canvas.getContext('2d')!
-    // 深空渐变底色
+    // 明亮童趣渐变底色（天蓝 → 淡紫 → 粉色晚霞）
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
-    grad.addColorStop(0, '#0a1030')
-    grad.addColorStop(0.45, '#101838')
-    grad.addColorStop(0.6, '#0c1430')
-    grad.addColorStop(1, '#060a1c')
+    grad.addColorStop(0, '#7ec8ff')
+    grad.addColorStop(0.3, '#a5d8ff')
+    grad.addColorStop(0.55, '#c9b8ff')
+    grad.addColorStop(0.75, '#ffb8d9')
+    grad.addColorStop(1, '#ffd6a5')
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // 彩色星云光斑（多层柔光圆形）
+    // 彩虹色星云光斑（明亮，高饱和度）
     const blobs: { x: number; y: number; r: number; color: string; alpha: number }[] = [
-      { x: 200, y: 160, r: 140, color: '79,209,255', alpha: 0.20 },  // 蓝
-      { x: 620, y: 220, r: 160, color: '159,124,255', alpha: 0.18 }, // 紫
-      { x: 860, y: 140, r: 120, color: '255,93,162', alpha: 0.15 },  // 粉
-      { x: 400, y: 320, r: 100, color: '255,209,102', alpha: 0.12 }, // 金
-      { x: 780, y: 380, r: 110, color: '61,214,208', alpha: 0.14 },  // 青
-      { x: 120, y: 400, r: 90, color: '255,138,61', alpha: 0.10 },   // 橙
+      { x: 180, y: 140, r: 150, color: '255,107,139', alpha: 0.35 },  // 粉红
+      { x: 500, y: 180, r: 170, color: '255,209,102', alpha: 0.32 },  // 金黄
+      { x: 820, y: 130, r: 140, color: '79,209,255', alpha: 0.35 },   // 天蓝
+      { x: 340, y: 340, r: 140, color: '159,124,255', alpha: 0.30 },  // 紫
+      { x: 700, y: 360, r: 150, color: '61,214,208', alpha: 0.30 },   // 青
+      { x: 110, y: 420, r: 120, color: '255,138,61', alpha: 0.25 },   // 橙
+      { x: 920, y: 430, r: 130, color: '255,157,245', alpha: 0.28 },  // 粉紫
     ]
     for (const b of blobs) {
       const rg = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r)
       rg.addColorStop(0, `rgba(${b.color},${b.alpha})`)
-      rg.addColorStop(0.5, `rgba(${b.color},${b.alpha * 0.45})`)
+      rg.addColorStop(0.5, `rgba(${b.color},${b.alpha * 0.5})`)
       rg.addColorStop(1, `rgba(${b.color},0)`)
       ctx.fillStyle = rg
       ctx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2)
     }
 
-    // 随机星星
-    for (let i = 0; i < 900; i++) {
+    // 可爱白星星 + 彩色星
+    const starColors = ['255,255,255', '255,240,200', '159,124,255', '79,209,255', '255,209,102']
+    for (let i = 0; i < 700; i++) {
       const x = Math.random() * canvas.width
       const y = Math.random() * canvas.height
-      const size = Math.random() < 0.85 ? 1 : Math.random() < 0.5 ? 1.5 : 2.5
-      const bright = 0.4 + Math.random() * 0.6
-      const warm = Math.random() < 0.3
-      ctx.fillStyle = warm
-        ? `rgba(255,240,200,${bright})`
-        : `rgba(220,235,255,${bright})`
+      const size = Math.random() < 0.8 ? 1.2 : Math.random() < 0.5 ? 2 : 3
+      const bright = 0.5 + Math.random() * 0.5
+      const c = starColors[Math.floor(Math.random() * starColors.length)]
+      ctx.fillStyle = `rgba(${c},${bright})`
       ctx.beginPath()
       ctx.arc(x, y, size / 2, 0, Math.PI * 2)
       ctx.fill()
@@ -273,7 +302,7 @@ export class TowerGame {
 
     const tex = new THREE.CanvasTexture(canvas)
     tex.colorSpace = THREE.SRGBColorSpace
-    // 大球反向贴图（相机在里面，看到星云）
+    // 大球反向贴图（相机在里面，看到彩色星云）
     const bgGeo = new THREE.SphereGeometry(90, 32, 16)
     const bgMat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false })
     const bg = new THREE.Mesh(bgGeo, bgMat)
