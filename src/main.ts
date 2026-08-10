@@ -112,8 +112,18 @@ function buildTechTree() {
 }
 
 function startGame(map: MapDef) {
-  currentMap = map
+  // 先展示剧情简报，确认后再真正开局
   $('menu-screen').classList.add('hidden')
+  $('story-screen').classList.remove('hidden')
+  $('story-title').textContent = `📜 ${map.name}`
+  $('story-text').textContent = map.story || '敌舰逼近，指挥官。准备防御。'
+  $('story-warning').textContent = `${map.waves} 波来袭 · 每 5 波一艘旗舰`
+  ;(window as any).__pendingMap = map
+}
+
+function actuallyStartGame(map: MapDef) {
+  currentMap = map
+  $('story-screen').classList.add('hidden')
   $('end-screen').classList.add('hidden')
   if (game) { game.destroy(); game = null }
   currentCredits = map.startCredits
@@ -124,7 +134,11 @@ function startGame(map: MapDef) {
   game = new TowerGame(canvas, map, {
     onWaveChange: (wave) => {
       $('wave-num').textContent = String(wave)
-      if (wave > 0) showBanner(`第 ${wave} 波`)
+      if (wave > 0) {
+        // 波次横幅带敌人预告（每5波Boss）
+        if (wave % 5 === 0) showBanner(`⚠️ 第 ${wave} 波 · 旗舰「湮灭者」来袭！`)
+        else showBanner(`第 ${wave} 波`)
+      }
     },
     onCredits: (c) => {
       currentCredits = c
@@ -222,6 +236,11 @@ function bindUI() {
     $('tech-screen').classList.add('hidden')
     $('menu-screen').classList.remove('hidden')
     buildMenu()
+  })
+  // 剧情简报 → 开始战斗
+  $('story-start').addEventListener('click', () => {
+    const map = (window as any).__pendingMap as MapDef | undefined
+    if (map) actuallyStartGame(map)
   })
 
   // 设置面板
