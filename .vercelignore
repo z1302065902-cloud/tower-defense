@@ -1,0 +1,12 @@
+# Vercel 上传排除（防止大目录导致部署超时失败）
+# 游戏静态资源走 GitHub Pages，Vercel 只负责 api/ 履约层
+.git
+node_modules
+dist
+dist-itch
+logs
+*.log
+# 大体积资源（.glb/.gltf 模型等）不入 Vercel
+public/assets/highpoly
+public/assets/kenney
+public/assets/quaternius

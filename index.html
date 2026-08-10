@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>轨道塔防 · 太空基地防御</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- 顶部 HUD -->
+      <div id="hud">
+        <div class="hud-left">
+          <span class="hud-title">轨道塔防</span>
+          <span class="hud-wave">波次 <b id="wave-num">0</b></span>
+          <span class="hud-lives">❤️ <b id="lives-num">20</b></span>
+        </div>
+        <div class="hud-right">
+          <span class="hud-credits">◈ <b id="credits-num">100</b></span>
+          <button id="btn-speed" class="hud-btn" title="变速">⏩</button>
+        </div>
+      </div>
+
+      <!-- 波次提示 -->
+      <div id="wave-banner" class="hidden"></div>
+
+      <!-- 选塔栏 -->
+      <div id="tower-bar">
+        <div class="tower-btn" data-tower="pulse" data-cost="50">
+          <div class="tower-icon pulse"></div><div class="tower-name">脉冲炮</div><div class="tower-cost">◈50</div>
+        </div>
+        <div class="tower-btn" data-tower="missile" data-cost="100">
+          <div class="tower-icon missile"></div><div class="tower-name">导弹塔</div><div class="tower-cost">◈100</div>
+        </div>
+        <div class="tower-btn" data-tower="beam" data-cost="150">
+          <div class="tower-icon beam"></div><div class="tower-name">光束塔</div><div class="tower-cost">◈150</div>
+        </div>
+        <div class="tower-btn" data-tower="slow" data-cost="80">
+          <div class="tower-icon slow"></div><div class="tower-name">减速塔</div><div class="tower-cost">◈80</div>
+        </div>
+      </div>
+
+      <!-- 选中塔面板 -->
+      <div id="tower-panel" class="hidden">
+        <div class="panel-title" id="panel-name"></div>
+        <div class="panel-info" id="panel-info"></div>
+        <div class="panel-actions">
+          <button id="btn-upgrade" class="panel-btn">升级 ◈<span id="panel-upgrade-cost"></span></button>
+          <button id="btn-sell" class="panel-btn danger">出售 ◈<span id="panel-sell-value"></span></button>
+        </div>
+      </div>
+
+      <!-- 地图选择 / 主菜单 -->
+      <div id="menu-screen" class="screen">
+        <div class="menu-card">
+          <h1>🛰️ 轨道塔防</h1>
+          <p class="menu-sub">守卫太空基地，抵御入侵波次</p>
+          <div id="map-list"></div>
+          <div class="menu-redeem">
+            <input id="redeem-input" placeholder="输入激活码 或 爱发电订单号" />
+            <button id="redeem-btn">兑换</button>
+            <span id="redeem-msg"></span>
+          </div>
+          <p class="menu-foot" id="menu-full-text">试玩版 · 免费体验第 1–2 关 · 完整版 ¥8 解锁全部 5 关</p>
+        </div>
+      </div>
+
+      <!-- 游戏结束 -->
+      <div id="end-screen" class="screen hidden">
+        <div class="menu-card">
+          <h2 id="end-title">游戏结束</h2>
+          <p id="end-info"></p>
+          <button id="btn-retry" class="panel-btn">再来一局</button>
+          <button id="btn-menu" class="panel-btn">返回菜单</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
