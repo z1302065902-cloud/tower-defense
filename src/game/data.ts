@@ -1,6 +1,6 @@
 // 游戏数据定义：地图、炮塔、敌人、波次
 
-export type TowerType = 'pulse' | 'missile' | 'beam' | 'slow'
+export type TowerType = 'pulse' | 'missile' | 'beam' | 'slow' | 'frost' | 'storm' | 'amp' | 'plasma'
 
 export interface TowerDef {
   type: TowerType
@@ -11,9 +11,12 @@ export interface TowerDef {
   damage: number
   color: number
   desc: string
-  slowFactor?: number // slow 塔：减速比例
-  slowDuration?: number // slow 塔：减速时长(秒)
+  slowFactor?: number // slow/frost 塔：减速比例
+  slowDuration?: number // slow/frost 塔：减速时长(秒)
   splashRadius?: number // missile 塔：溅射半径
+  chainCount?: number // storm 塔：闪电链弹射次数
+  buffDamageMul?: number // amp 塔：周围塔伤害增幅
+  buffRange?: number // amp 塔：增幅半径
   upgradeMultiplier: number // 每级成长系数
   maxLevel: number
 }
@@ -35,10 +38,26 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     type: 'slow', name: '减速塔', cost: 80, range: 6, fireRate: 0, damage: 0, color: 0x3dd6d0,
     slowFactor: 0.55, slowDuration: 1.8, desc: '减速范围内敌人', upgradeMultiplier: 1.4, maxLevel: 3,
   },
+  frost: {
+    type: 'frost', name: '冰霜塔', cost: 120, range: 7, fireRate: 0, damage: 0, color: 0x7ae0ff,
+    slowFactor: 0.35, slowDuration: 2.5, desc: '大范围强减速', upgradeMultiplier: 1.45, maxLevel: 4,
+  },
+  storm: {
+    type: 'storm', name: '电击塔', cost: 140, range: 8, fireRate: 1.1, damage: 16, color: 0xf6ff5e,
+    chainCount: 3, desc: '闪电链弹射多个敌人', upgradeMultiplier: 1.7, maxLevel: 4,
+  },
+  amp: {
+    type: 'amp', name: '增幅塔', cost: 160, range: 5, fireRate: 0, damage: 0, color: 0xff9df5,
+    buffDamageMul: 1.35, buffRange: 4, desc: '提升周围塔伤害', upgradeMultiplier: 1.3, maxLevel: 3,
+  },
+  plasma: {
+    type: 'plasma', name: '等离子塔', cost: 220, range: 7, fireRate: 0.8, damage: 55, color: 0xff5da2,
+    desc: '高伤穿透光束，后期主力', upgradeMultiplier: 1.9, maxLevel: 4,
+  },
 }
 
 // ===== 敌人类型 =====
-export type EnemyType = 'scout' | 'raider' | 'tank' | 'swarm' | 'boss'
+export type EnemyType = 'scout' | 'raider' | 'tank' | 'swarm' | 'boss' | 'splitter' | 'shielded' | 'healer'
 
 export interface EnemyDef {
   type: EnemyType
@@ -50,6 +69,10 @@ export interface EnemyDef {
   color: number
   radius: number
   scale: number
+  shield?: number // shielded：护盾值
+  healPerSec?: number // healer：每秒给周围回血
+  splitInto?: EnemyType // splitter：死亡分裂成什么
+  splitCount?: number // splitter：分裂数量
 }
 
 export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
@@ -58,6 +81,9 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
   tank:   { type: 'tank',   name: '重装舰', hp: 220,  speed: 1.8, reward: 30, damage: 4, color: 0xff5d5d, radius: 0.75, scale: 1.1 },
   swarm:  { type: 'swarm',  name: '蜂群',   hp: 18,   speed: 5.0, reward: 5,  damage: 1, color: 0x9f7cff, radius: 0.35, scale: 0.5 },
   boss:   { type: 'boss',   name: '旗舰',   hp: 1600, speed: 0.9, reward: 200, damage: 10, color: 0xff3b6b, radius: 1.4, scale: 2.2 },
+  splitter:  { type: 'splitter',  name: '分裂者', hp: 90,   speed: 2.6, reward: 20, damage: 2, color: 0x58ffb0, radius: 0.6, scale: 0.95, splitInto: 'swarm', splitCount: 3 },
+  shielded:  { type: 'shielded',  name: '护盾舰', hp: 60,   speed: 2.4, reward: 18, damage: 2, color: 0x9fb8ff, radius: 0.65, scale: 1.0, shield: 80 },
+  healer:    { type: 'healer',    name: '治疗舰', hp: 110,  speed: 2.2, reward: 25, damage: 2, color: 0xffe27a, radius: 0.6, scale: 0.95, healPerSec: 14 },
 }
 
 // ===== 地图：路径点（坐标以基地中心为原点，y=0 平面） =====
@@ -108,6 +134,27 @@ export const MAPS: MapDef[] = [
       [-14, -10], [6, -10], [6, -2], [-6, -2], [-6, 6], [12, 6], [12, -6], [-12, -6], [-12, 8], [0, 8], [0, 12],
     ],
   },
+  {
+    id: 'sigma', name: '西格玛岔路', waves: 22, free: false,
+    startCredits: 190, startLives: 25,
+    path: [
+      [-14, -10], [-14, 8], [0, 8], [0, -4], [8, -4], [8, 6], [14, 6],
+    ],
+  },
+  {
+    id: 'tau', name: '陶双入口', waves: 24, free: false,
+    startCredits: 210, startLives: 28,
+    path: [
+      [-14, -12], [-6, -12], [-6, 0], [-2, 0], [-2, -8], [4, -8], [4, 6], [10, 6], [10, -2], [14, -2],
+    ],
+  },
+  {
+    id: 'phi', name: '斐迷宫', waves: 26, free: false,
+    startCredits: 230, startLives: 30,
+    path: [
+      [-14, -12], [-14, 4], [-8, 4], [-8, -6], [0, -6], [0, 8], [6, 8], [6, -2], [12, -2], [12, 10],
+    ],
+  },
 ]
 
 // 波次生成器：给定波次号，返回该波敌人的类型与数量
@@ -132,15 +179,21 @@ export function waveFor(map: MapDef, waveNum: number): WaveDef {
   } else if (t < 0.5) {
     spawns.push({ type: 'scout', count: 3 + w })
     spawns.push({ type: 'raider', count: 2 + Math.floor(w * 0.7) })
+    if (w >= 6) spawns.push({ type: 'splitter', count: Math.floor(w / 3) })
     if (w >= 8) spawns.push({ type: 'tank', count: Math.floor(w / 4) })
   } else if (t < 0.75) {
     spawns.push({ type: 'raider', count: 3 + Math.floor(w * 0.8) })
     spawns.push({ type: 'tank', count: 1 + Math.floor(w / 3) })
     spawns.push({ type: 'swarm', count: 4 + w })
+    if (w >= 10) spawns.push({ type: 'shielded', count: 1 + Math.floor(w / 4) })
+    if (w % 4 === 0) spawns.push({ type: 'healer', count: Math.floor(w / 6) })
   } else {
     spawns.push({ type: 'tank', count: 2 + Math.floor(w / 2) })
     spawns.push({ type: 'swarm', count: 6 + w })
     spawns.push({ type: 'raider', count: 3 + Math.floor(w * 0.5) })
+    spawns.push({ type: 'shielded', count: 2 + Math.floor(w / 3) })
+    if (w % 3 === 0) spawns.push({ type: 'healer', count: 1 + Math.floor(w / 5) })
+    if (w >= 12) spawns.push({ type: 'splitter', count: 2 + Math.floor(w / 3) })
   }
   // HP 成长系数（让数值永不失控）
   const interval = Math.max(0.45, 0.9 - w * 0.012)

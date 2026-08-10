@@ -17,12 +17,14 @@ export interface TowerInstance {
   target?: EnemyInstance | null
   flashT: number
   invested: number
+  buffMul?: number // 增幅塔加成
 }
 
 export interface EnemyInstance {
   def: EnemyType
   hp: number
   maxHp: number
+  shield: number // 护盾值（先吸收伤害）
   progress: number // 0..pathLen 沿路径位移
   speed: number
   slowT: number
@@ -32,6 +34,14 @@ export interface EnemyInstance {
   mesh: THREE.Object3D
   dead: boolean
   hitFlash: number
+  healT: number // healer 治疗计时
+}
+
+/** 局外科技加成 */
+export interface GameModifiers {
+  damageMul: number
+  rateMul: number
+  rangeMul: number
 }
 
 export interface GameEvents {
@@ -83,9 +93,11 @@ export class TowerGame {
   private spawnTimer = 0
   private waveEnded = false
   private buildingGhost: THREE.Mesh | null = null
+  mods: GameModifiers = { damageMul: 1, rateMul: 1, rangeMul: 1 }
 
-  constructor(canvas: HTMLCanvasElement, map: MapDef, events: GameEvents) {
+  constructor(canvas: HTMLCanvasElement, map: MapDef, events: GameEvents, mods?: Partial<GameModifiers>) {
     this.map = map
+    this.mods = { damageMul: 1, rateMul: 1, rangeMul: 1, ...mods }
     this.credits = map.startCredits
     this.lives = map.startLives
 
@@ -229,13 +241,64 @@ export class TowerGame {
       )
       top.position.y = 1.3
       g.add(top)
-    } else if (type === 'slow') {
+    } else if (type === 'slow' || type === 'frost') {
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(0.55 * s, 0.1, 8, 18),
         new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: def.color, emissiveIntensity: 0.6 }),
       )
       ring.position.y = 1.1
       g.add(ring)
+      // 冰霜塔加冰晶
+      if (type === 'frost') {
+        const crystal = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.35 * s, 0),
+          new THREE.MeshStandardMaterial({ color: 0xd0f6ff, emissive: def.color, emissiveIntensity: 0.5 }),
+        )
+        crystal.position.y = 1.5
+        g.add(crystal)
+      }
+    } else if (type === 'storm') {
+      // 电击塔：顶部球形电核 + 尖刺
+      const orb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.28 * s, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      )
+      orb.position.y = 1.4
+      g.add(orb)
+      for (let i = 0; i < 4; i++) {
+        const spike = new THREE.Mesh(
+          new THREE.ConeGeometry(0.1, 0.35, 6),
+          new THREE.MeshStandardMaterial({ color: def.color, emissive: def.color, emissiveIntensity: 0.7 }),
+        )
+        const a = (i / 4) * Math.PI * 2
+        spike.position.set(Math.cos(a) * 0.45 * s, 1.15, Math.sin(a) * 0.45 * s)
+        spike.rotation.x = -0.4
+        spike.rotation.z = -a
+        g.add(spike)
+      }
+    } else if (type === 'amp') {
+      // 增幅塔：悬浮环 + 核心
+      const core = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.4 * s, 0),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: def.color, emissiveIntensity: 0.8 }),
+      )
+      core.position.y = 1.15
+      g.add(core)
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.7 * s, 0.06, 8, 24),
+        new THREE.MeshBasicMaterial({ color: def.color }),
+      )
+      ring.position.y = 1.5
+      ring.rotation.x = Math.PI / 2
+      g.add(ring)
+    } else if (type === 'plasma') {
+      // 等离子塔：大口径炮管
+      const barrel = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.3, 0.36, 1.0, 10),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: def.color, emissiveIntensity: 0.6 }),
+      )
+      barrel.position.y = 1.35
+      g.add(barrel)
     } else {
       const barrel = new THREE.Mesh(
         new THREE.CylinderGeometry(0.1, 0.1, 0.7, 8),
@@ -263,6 +326,29 @@ export class TowerGame {
     glow.rotation.x = Math.PI / 2
     glow.position.z = -0.7 * def.scale
     g.add(glow)
+    // 护盾敌人加护盾环
+    if (def.shield) {
+      const shieldRing = new THREE.Mesh(
+        new THREE.SphereGeometry(0.75 * def.scale, 12, 10),
+        new THREE.MeshBasicMaterial({ color: 0x7fa8ff, transparent: true, opacity: 0.35, wireframe: true }),
+      )
+      g.add(shieldRing)
+    }
+    // 治疗敌人加十字标识
+    if (def.healPerSec) {
+      const cross = new THREE.Mesh(
+        new THREE.BoxGeometry(0.55 * def.scale, 0.5 * def.scale, 0.12),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      )
+      const cross2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.55 * def.scale, 0.12),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      )
+      cross.position.y = 1.05 * def.scale
+      cross2.position.y = 1.05 * def.scale
+      g.add(cross)
+      g.add(cross2)
+    }
     return g
   }
 
@@ -482,7 +568,10 @@ export class TowerGame {
     const sellEl = document.getElementById('panel-sell-value')!
     const panel = document.getElementById('tower-panel')!
     nameEl.textContent = `${def.name} Lv.${t.level}`
-    const dmg = def.damage ? `${Math.round(def.damage * Math.pow(def.upgradeMultiplier, t.level - 1))} 伤害` : '减速'
+    let dmg = '辅助'
+    if (t.def === 'slow' || t.def === 'frost') dmg = '减速'
+    else if (t.def === 'amp') dmg = `增幅 ×${(def.buffDamageMul! * Math.pow(def.upgradeMultiplier, t.level - 1)).toFixed(2)}`
+    else if (def.damage) dmg = `${Math.round(def.damage * Math.pow(def.upgradeMultiplier, t.level - 1))} 伤害`
     infoEl.textContent = `${dmg} · 射程 ${def.range}`
     const canUp = t.level < def.maxLevel && this.credits >= this.upgradeCost(t)
     upEl.disabled = !canUp
@@ -532,6 +621,20 @@ export class TowerGame {
         sp *= en.slowFactor
       }
       en.progress += sp * dt
+      // 治疗者：周期性给周围敌人回血
+      const healDef = ENEMY_DEFS[en.def]
+      if (healDef.healPerSec) {
+        en.healT = (en.healT || 0) + dt
+        if (en.healT >= 1) {
+          en.healT = 0
+          for (const other of this.enemies) {
+            if (other === en || other.dead) continue
+            if (other.mesh.position.distanceTo(en.mesh.position) <= 4) {
+              other.hp = Math.min(other.maxHp, other.hp + healDef.healPerSec)
+            }
+          }
+        }
+      }
       if (en.progress >= this.pathLen) {
         // 到达基地
         en.dead = true
@@ -560,16 +663,29 @@ export class TowerGame {
     this.enemies = this.enemies.filter((e) => !e.dead)
 
     // 塔攻击
+    const rangeMul = this.mods.rangeMul
+    const rateMul = this.mods.rateMul
     for (const t of this.towers) {
       const def = TOWER_DEFS[t.def]
       t.cooldown -= dt
       if (t.flashT > 0) t.flashT -= dt
-      // 减速塔：持续范围减速
-      if (t.def === 'slow') {
+      const range = def.range * rangeMul
+      // 减速/冰霜塔：持续范围减速
+      if (t.def === 'slow' || t.def === 'frost') {
         for (const en of this.enemies) {
-          if (Math.hypot(en.mesh.position.x - t.x, en.mesh.position.z - t.z) <= def.range) {
-            en.slowT = def.slowDuration!
-            en.slowFactor = def.slowFactor!
+          if (Math.hypot(en.mesh.position.x - t.x, en.mesh.position.z - t.z) <= range) {
+            if (en.slowT <= 0 || def.slowFactor! < en.slowFactor) en.slowFactor = def.slowFactor!
+            en.slowT = Math.max(en.slowT, def.slowDuration!)
+          }
+        }
+        continue
+      }
+      // 增幅塔：提升周围塔伤害（不攻击）
+      if (t.def === 'amp') {
+        for (const other of this.towers) {
+          if (other === t || other.def === 'amp' || other.def === 'slow' || other.def === 'frost') continue
+          if (Math.hypot(other.x - t.x, other.z - t.z) <= def.buffRange!) {
+            other.buffMul = def.buffDamageMul! * Math.pow(def.upgradeMultiplier, t.level - 1)
           }
         }
         continue
@@ -580,24 +696,39 @@ export class TowerGame {
       let bestProg = -1
       for (const en of this.enemies) {
         const d = Math.hypot(en.mesh.position.x - t.x, en.mesh.position.z - t.z)
-        if (d <= def.range && en.progress > bestProg) {
+        if (d <= range && en.progress > bestProg) {
           best = en
           bestProg = en.progress
         }
       }
       if (!best) continue
       t.target = best
-      t.cooldown = 1 / def.fireRate
+      t.cooldown = 1 / (def.fireRate * rateMul)
       // 开火视觉
       t.flashT = 0.12
-      const dmg = Math.round(def.damage * Math.pow(def.upgradeMultiplier, t.level - 1))
+      const dmg = Math.round(def.damage * Math.pow(def.upgradeMultiplier, t.level - 1) * this.mods.damageMul * (t.buffMul || 1))
       if (t.def === 'missile') {
         this.projectiles.push({ mesh: this.makeProjectile(def.color, t.x, t.z), target: best, speed: 10, damage: dmg, type: 'missile', splash: def.splashRadius! })
       } else if (t.def === 'beam') {
         this.fireBeam(t, best, dmg)
+      } else if (t.def === 'storm') {
+        this.fireChain(t, best, dmg, def.chainCount!)
+      } else if (t.def === 'plasma') {
+        this.fireBeam(t, best, dmg, 0.18)
       } else {
         this.projectiles.push({ mesh: this.makeProjectile(def.color, t.x, t.z), target: best, speed: 14, damage: dmg, type: 'bullet', splash: 0 })
       }
+    }
+    // 重置未受增幅的塔
+    for (const t of this.towers) {
+      let buffed = false
+      for (const a of this.towers) {
+        if (a.def === 'amp' && Math.hypot(a.x - t.x, a.z - t.z) <= TOWER_DEFS.amp.buffRange!) {
+          buffed = true
+          break
+        }
+      }
+      if (!buffed) t.buffMul = 1
     }
 
     // 弹体更新
@@ -642,14 +773,14 @@ export class TowerGame {
     return m
   }
 
-  private fireBeam(t: TowerInstance, target: EnemyInstance, dmg: number) {
+  private fireBeam(t: TowerInstance, target: EnemyInstance, dmg: number, radius = 0.05) {
     const mat = new THREE.MeshBasicMaterial({
       color: TOWER_DEFS[t.def].color, transparent: true, opacity: 0.8,
     })
     const a = new THREE.Vector3(t.x, 1.1, t.z)
     const b = target.mesh.position.clone()
     const h = a.distanceTo(b)
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, h, 6), mat)
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, h, 6), mat)
     mesh.position.copy(a).add(b).multiplyScalar(0.5)
     mesh.position.y = 1.1
     mesh.lookAt(b)
@@ -659,16 +790,68 @@ export class TowerGame {
     this.damageEnemy(target, dmg, 0)
   }
 
+  /** 电击塔：闪电链弹射 */
+  private fireChain(t: TowerInstance, first: EnemyInstance, dmg: number, chainCount: number) {
+    const hit = new Set<EnemyInstance>([first])
+    let current = first
+    this.damageEnemy(first, dmg, 0)
+    // 画闪电
+    this.drawLightning(t.x, t.z, first.mesh.position.x, first.mesh.position.z)
+    for (let i = 0; i < chainCount; i++) {
+      let next: EnemyInstance | null = null
+      let bestD = Infinity
+      for (const en of this.enemies) {
+        if (hit.has(en) || en.dead) continue
+        const d = en.mesh.position.distanceTo(current.mesh.position)
+        if (d < bestD && d <= 5) { bestD = d; next = en }
+      }
+      if (!next) break
+      hit.add(next)
+      this.damageEnemy(next, Math.round(dmg * 0.6), 0)
+      this.drawLightning(current.mesh.position.x, current.mesh.position.z, next.mesh.position.x, next.mesh.position.z)
+      current = next
+    }
+  }
+
+  private drawLightning(x1: number, z1: number, x2: number, z2: number) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xf6ff5e, transparent: true, opacity: 0.9 })
+    const a = new THREE.Vector3(x1, 1, z1)
+    const b = new THREE.Vector3(x2, 1, z2)
+    const h = a.distanceTo(b)
+    if (h < 0.01) return
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, h, 5), mat)
+    mesh.position.copy(a).add(b).multiplyScalar(0.5)
+    mesh.lookAt(b)
+    mesh.rotateX(Math.PI / 2)
+    this.group.add(mesh)
+    this.beams.push({ mesh, life: 0.1 })
+  }
+
   private damageEnemy(en: EnemyInstance, dmg: number, splash: number) {
     if (en.dead) return
-    en.hp -= dmg
-    en.hitFlash = 0.15
+    // 护盾优先吸收
+    if (en.shield > 0) {
+      const absorbed = Math.min(en.shield, dmg)
+      en.shield -= absorbed
+      dmg -= absorbed
+      en.hitFlash = 0.15
+    }
+    if (dmg > 0) {
+      en.hp -= dmg
+      en.hitFlash = 0.15
+    }
     if (splash > 0) {
       // 溅射：伤害范围敌人
       for (const other of this.enemies) {
         if (other === en || other.dead) continue
         if (other.mesh.position.distanceTo(en.mesh.position) <= splash) {
-          other.hp -= dmg * 0.5
+          if (other.shield > 0) {
+            const ab = Math.min(other.shield, dmg * 0.5)
+            other.shield -= ab
+            other.hp -= dmg * 0.5 - ab
+          } else {
+            other.hp -= dmg * 0.5
+          }
           other.hitFlash = 0.15
         }
       }
@@ -682,6 +865,43 @@ export class TowerGame {
     this.credits += en.reward
     this.events.onCredits(this.credits)
     en.mesh.removeFromParent()
+    // 分裂者：死后分裂
+    const def = ENEMY_DEFS[en.def]
+    if (def.splitInto) {
+      for (let i = 0; i < (def.splitCount || 2); i++) {
+        this.spawnSplitEnemy(def.splitInto, en.mesh.position.x, en.mesh.position.z)
+      }
+    }
+  }
+
+  private spawnSplitEnemy(type: EnemyType, x: number, z: number) {
+    const def = ENEMY_DEFS[type]
+    const mesh = this.enemyMesh(type)
+    // 分裂的小怪从父位置附近生成，仍在轨道上
+    mesh.position.set(x, 0.4, z)
+    this.group.add(mesh)
+    const hpScale = 1 + (this.wave - 1) * 0.22 + this.wave * this.wave * 0.015
+    const hp = Math.round(def.hp * hpScale * 0.6) // 分裂体较弱
+    this.enemies.push({
+      def: type, hp, maxHp: hp, shield: def.shield ? Math.round(def.shield * hpScale * 0.6) : 0,
+      progress: this.findNearestProgress(x, z), speed: def.speed,
+      slowT: 0, slowFactor: 1, reward: def.reward, damage: def.damage,
+      mesh, dead: false, hitFlash: 0, healT: 0,
+    })
+  }
+
+  /** 找离某个世界坐标最近的路径进度 */
+  private findNearestProgress(x: number, z: number): number {
+    const curve = new THREE.CatmullRomCurve3(this.pathPoints)
+    let bestT = 0
+    let bestD = Infinity
+    for (let i = 0; i <= 50; i++) {
+      const t = i / 50
+      const p = curve.getPointAt(t)
+      const d = Math.hypot(p.x - x, p.z - z)
+      if (d < bestD) { bestD = d; bestT = t }
+    }
+    return bestT * this.pathLen
   }
 
   private spawnEnemy(type: EnemyType) {
@@ -693,10 +913,11 @@ export class TowerGame {
     // 波次成长：HP 随波次放大
     const hpScale = 1 + (this.wave - 1) * 0.22 + this.wave * this.wave * 0.015
     const hp = Math.round(def.hp * hpScale)
+    const shield = def.shield ? Math.round(def.shield * hpScale) : 0
     this.enemies.push({
-      def: type, hp, maxHp: hp, progress: 0, speed: def.speed,
+      def: type, hp, maxHp: hp, shield, progress: 0, speed: def.speed,
       slowT: 0, slowFactor: 1, reward: def.reward, damage: def.damage,
-      mesh, dead: false, hitFlash: 0,
+      mesh, dead: false, hitFlash: 0, healT: 0,
     })
   }
 

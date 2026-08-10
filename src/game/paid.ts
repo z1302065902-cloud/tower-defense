@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = 'td-paid-v1'
 
-export const TRIAL_MAPS = 2 // 试玩免费地图数
+export const TRIAL_MAPS = 1 // 试玩免费地图数
 
 export const AFDIAN_VERIFY_URL: string =
   (import.meta as any).env?.VITE_AFDIAN_VERIFY_URL ||
