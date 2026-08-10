@@ -1,15 +1,15 @@
 :root {
   color-scheme: dark;
-  --bg: #05070f;
-  --panel: rgba(10, 16, 34, 0.88);
-  --panel-border: #2a3a6a;
+  --bg: #1a2a52;
+  --panel: rgba(30, 42, 90, 0.88);
+  --panel-border: #5a6aae;
   --accent: #4fd1ff;
-  --accent2: #9f7cff;
+  --accent2: #ff9df5;
   --gold: #ffd166;
   --danger: #ff5d5d;
   --ok: #4ade80;
-  --text: #dbe4ff;
-  --dim: #7f8db3;
+  --text: #e8edff;
+  --dim: #a0aee0;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -103,13 +103,13 @@ body {
 .screen {
   position: absolute; inset: 0; z-index: 20;
   display: flex; align-items: center; justify-content: center;
-  /* 深空渐变背景：彩色星云色 + 半透明，不再是纯黑 */
+  /* 明亮童趣渐变背景：天蓝→粉紫→糖果色 */
   background:
-    radial-gradient(ellipse at 25% 25%, rgba(79,209,255,0.16), transparent 60%),
-    radial-gradient(ellipse at 75% 20%, rgba(255,93,162,0.12), transparent 55%),
-    radial-gradient(ellipse at 70% 80%, rgba(159,124,255,0.18), transparent 60%),
-    radial-gradient(ellipse at 30% 85%, rgba(255,209,102,0.10), transparent 55%),
-    linear-gradient(180deg, #0a1230 0%, #0e1738 45%, #0a1228 75%, #070b1c 100%);
+    radial-gradient(ellipse at 20% 25%, rgba(255,107,139,0.20), transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(79,209,255,0.22), transparent 55%),
+    radial-gradient(ellipse at 70% 80%, rgba(159,124,255,0.22), transparent 60%),
+    radial-gradient(ellipse at 30% 85%, rgba(255,209,102,0.16), transparent 55%),
+    linear-gradient(180deg, #7ec8ff 0%, #a5d8ff 35%, #c9b8ff 65%, #ffb8d9 100%);
 }
 /* 菜单上的星星闪烁动画（密集星点） */
 .menu-stars {
@@ -137,43 +137,44 @@ body {
 }
 .menu-card {
   width: min(420px, 92vw); padding: 28px 26px;
-  background: var(--panel); border: 1px solid var(--panel-border);
-  border-radius: 16px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  background: rgba(255, 255, 255, 0.9); border: 3px solid #ffd166;
+  border-radius: 24px; text-align: center;
+  box-shadow: 0 10px 40px rgba(40, 40, 90, 0.35);
 }
-.menu-card h1 { font-size: 30px; margin-bottom: 4px; }
-.menu-card h2 { font-size: 24px; margin-bottom: 10px; }
-.menu-sub { color: var(--dim); font-size: 14px; margin-bottom: 20px; }
+.menu-card h1 { font-size: 30px; margin-bottom: 4px; color: #3a4a8a; }
+.menu-card h2 { font-size: 24px; margin-bottom: 10px; color: #3a4a8a; }
+.menu-sub { color: #5a6aae; font-size: 14px; margin-bottom: 20px; }
 
 #map-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .map-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; background: #0d1630; border: 1px solid var(--panel-border);
-  border-radius: 10px; cursor: pointer; transition: all 0.15s;
+  padding: 10px 14px; background: #eef2ff; border: 2px solid #d0d8ff;
+  border-radius: 14px; cursor: pointer; transition: all 0.15s;
 }
-.map-row:hover { border-color: var(--accent); }
+.map-row:hover { border-color: var(--accent); transform: translateY(-1px); }
 .map-row.locked { opacity: 0.5; cursor: not-allowed; }
-.map-row.locked:hover { border-color: var(--panel-border); }
-.map-row .map-name { font-weight: 600; }
-.map-row .map-waves { font-size: 12px; color: var(--dim); }
-.map-row .map-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; }
-.map-row .map-tag.lock { background: rgba(255,93,93,0.15); color: var(--danger); }
-.map-row .map-tag.free { background: rgba(74,222,128,0.15); color: var(--ok); }
+.map-row.locked:hover { border-color: #d0d8ff; transform: none; }
+.map-row .map-name { font-weight: 700; color: #3a4a8a; }
+.map-row .map-waves { font-size: 12px; color: #7a8ac0; }
+.map-row .map-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+.map-row .map-tag.lock { background: rgba(255,93,93,0.18); color: #e04040; }
+.map-row .map-tag.free { background: rgba(74,222,128,0.22); color: #1f9d4d; }
 
 .menu-redeem { display: flex; gap: 6px; margin-bottom: 10px; }
 .menu-redeem input {
-  flex: 1; padding: 9px 12px; background: #0d1630; color: var(--text);
-  border: 1px solid var(--panel-border); border-radius: 8px; font-size: 13px; outline: none;
+  flex: 1; padding: 9px 12px; background: #f4f6ff; color: #3a4a8a;
+  border: 2px solid #d0d8ff; border-radius: 12px; font-size: 13px; outline: none;
 }
 .menu-redeem input:focus { border-color: var(--accent); }
 .menu-redeem button {
-  padding: 9px 16px; background: var(--accent); color: #001;
-  border: none; border-radius: 8px; font-weight: 700; cursor: pointer;
+  padding: 9px 16px; background: var(--accent); color: #003;
+  border: none; border-radius: 12px; font-weight: 700; cursor: pointer;
 }
 .menu-redeem button:hover { filter: brightness(1.1); }
-#redeem-msg { display: block; min-height: 18px; font-size: 12px; color: var(--dim); margin-top: 6px; }
-#redeem-msg.ok { color: var(--ok); }
-#redeem-msg.err { color: var(--danger); }
-.menu-foot { font-size: 12px; color: var(--dim); margin-top: 8px; }
+#redeem-msg { display: block; min-height: 18px; font-size: 12px; color: #5a6aae; margin-top: 6px; }
+#redeem-msg.ok { color: #1f9d4d; }
+#redeem-msg.err { color: #e04040; }
+.menu-foot { font-size: 12px; color: #5a6aae; margin-top: 8px; }
 
 #end-screen .menu-card p { color: var(--dim); margin-bottom: 18px; }
 #end-screen .menu-card .panel-btn { padding: 10px 0; font-size: 14px; margin-bottom: 8px; }
@@ -197,40 +198,40 @@ body {
   display: flex; justify-content: center; gap: 12px; margin-bottom: 14px;
 }
 .meta-chip {
-  background: rgba(79,209,255,0.1); border: 1px solid rgba(79,209,255,0.3);
-  border-radius: 20px; padding: 5px 14px; font-size: 13px; color: var(--text);
+  background: rgba(255,255,255,0.7); border: 2px solid #d0d8ff;
+  border-radius: 20px; padding: 5px 14px; font-size: 13px; color: #3a4a8a; font-weight: 600;
 }
-.meta-chip b { color: var(--gold); }
+.meta-chip b { color: #e0a020; }
 .menu-buttons { display: flex; justify-content: center; margin-bottom: 14px; }
 .menu-btn {
-  padding: 10px 24px; background: #14224a; color: var(--text);
-  border: 1px solid var(--panel-border); border-radius: 10px;
+  padding: 10px 24px; background: #4fd1ff; color: #003;
+  border: 2px solid #2fb0e0; border-radius: 14px;
   font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s;
 }
-.menu-btn:hover { border-color: var(--accent); color: var(--accent); }
+.menu-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
 /* ===== 地图星星 ===== */
-.map-stars { color: var(--gold); font-size: 12px; letter-spacing: 1px; }
+.map-stars { color: #e0a020; font-size: 12px; letter-spacing: 1px; }
 
 /* ===== 科技树 ===== */
 .menu-card.wide { width: min(520px, 94vw); }
 .tech-top { display: flex; justify-content: center; margin-bottom: 12px; }
 .research-scroll { max-height: 46vh; overflow-y: auto; text-align: left; padding-right: 4px; }
-.research-scroll h3 { color: var(--accent); font-size: 14px; margin: 14px 0 8px; }
+.research-scroll h3 { color: #3a4a8a; font-size: 14px; margin: 14px 0 8px; }
 .research-row {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  padding: 9px 12px; background: #0d1630; border: 1px solid var(--panel-border);
-  border-radius: 10px; margin-bottom: 8px;
+  padding: 9px 12px; background: #eef2ff; border: 2px solid #d0d8ff;
+  border-radius: 12px; margin-bottom: 8px;
 }
 .research-row.maxed { opacity: 0.7; }
-.res-name { font-weight: 600; font-size: 13px; }
-.res-lv { color: var(--accent); font-size: 11px; }
-.res-desc { font-size: 11px; color: var(--dim); margin-top: 2px; }
+.res-name { font-weight: 700; font-size: 13px; color: #3a4a8a; }
+.res-lv { color: #4a6ad0; font-size: 11px; }
+.res-desc { font-size: 11px; color: #7a8ac0; margin-top: 2px; }
 .res-btn {
-  flex-shrink: 0; padding: 7px 14px; background: #14224a; color: var(--gold);
-  border: 1px solid rgba(255,209,102,0.4); border-radius: 8px; font-size: 12px; cursor: pointer;
+  flex-shrink: 0; padding: 7px 14px; background: #ffd166; color: #5a3a00;
+  border: 2px solid #e0a020; border-radius: 10px; font-size: 12px; cursor: pointer; font-weight: 700;
 }
-.res-btn:hover { border-color: var(--gold); }
+.res-btn:hover { filter: brightness(1.1); }
 .res-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ===== 设置弹窗 ===== */
