@@ -112,32 +112,32 @@ export class TowerGame {
     this.camera.lookAt(0, 0, 0)
 
     this.scene.add(this.group)
-    this.scene.fog = new THREE.Fog(0x05070f, 40, 70)
-    this.scene.background = new THREE.Color(0x05070f)
+    this.scene.fog = new THREE.FogExp2(0x04060f, 0.016)
+    this.scene.background = new THREE.Color(0x04060f)
 
     // 灯光
-    const hemi = new THREE.HemisphereLight(0x8899ff, 0x0c1428, 0.7)
+    const hemi = new THREE.HemisphereLight(0x8899ff, 0x0c1428, 0.75)
     this.scene.add(hemi)
-    const dir = new THREE.DirectionalLight(0xffffff, 1.1)
+    const dir = new THREE.DirectionalLight(0xfff2e0, 1.2)
     dir.position.set(10, 20, 8)
     dir.castShadow = true
+    dir.shadow.mapSize.set(1024, 1024)
     this.scene.add(dir)
+    // 冷色补光
+    const rim = new THREE.PointLight(0x4fd1ff, 0.5, 50)
+    rim.position.set(-12, 8, -10)
+    this.scene.add(rim)
 
-    // 星星背景
-    const stars = new THREE.Points(
-      new THREE.BufferGeometry().setFromPoints(
-        Array.from({ length: 300 }, () => new THREE.Vector3(
-          (Math.random() - 0.5) * 160, Math.random() * 40 + 5, (Math.random() - 0.5) * 160,
-        )),
-      ),
-      new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.7 }),
-    )
-    this.scene.add(stars)
+    // 动态星空背景（多层）
+    this.buildStarfield()
+
+    // 空间站漂浮装饰（背景氛围）
+    this.buildSpaceDecor()
 
     // 地面 + 路径
     this.ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(40, 40),
-      new THREE.MeshStandardMaterial({ color: GROUND_COLOR, roughness: 0.95 }),
+      new THREE.PlaneGeometry(44, 44),
+      new THREE.MeshStandardMaterial({ color: GROUND_COLOR, roughness: 0.92, metalness: 0.1 }),
     )
     this.ground.rotation.x = -Math.PI / 2
     this.ground.receiveShadow = true
@@ -149,9 +149,9 @@ export class TowerGame {
     this.group.add(this.base)
 
     // 网格辅助线（可选放置辅助）
-    const grid = new THREE.GridHelper(40, 20, 0x223055, 0x141f3d)
+    const grid = new THREE.GridHelper(44, 22, 0x1a2b52, 0x101a35)
     ;(grid.material as THREE.Material).transparent = true
-    ;(grid.material as THREE.Material).opacity = 0.35
+    ;(grid.material as THREE.Material).opacity = 0.45
     this.group.add(grid)
 
     // 交互
@@ -210,6 +210,134 @@ export class TowerGame {
     ring.position.y = 0.2
     g.add(ring)
     return g
+  }
+
+  // 动画用数据
+  private starParticles: THREE.Points | null = null
+  private decorObjects: THREE.Object3D[] = []
+  private explosionParticles: { mesh: THREE.Points; vel: THREE.Vector3[]; life: number }[] = []
+
+  /** 多层动态星空：远近两层 + 缓慢旋转的星点 */
+  private buildStarfield() {
+    // 远层：稀疏小星
+    const far = new THREE.BufferGeometry()
+    const farPos: number[] = []
+    for (let i = 0; i < 400; i++) {
+      farPos.push(
+        (Math.random() - 0.5) * 200,
+        Math.random() * 60 + 5,
+        (Math.random() - 0.5) * 200,
+      )
+    }
+    far.setAttribute('position', new THREE.Float32BufferAttribute(farPos, 3))
+    const farMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.6, sizeAttenuation: true })
+    const farPts = new THREE.Points(far, farMat)
+    this.scene.add(farPts)
+
+    // 近层：彩色亮星（缓慢漂移）
+    const near = new THREE.BufferGeometry()
+    const nearPos: number[] = []
+    const nearCol: number[] = []
+    const colors = [0x4fd1ff, 0xffd166, 0xff9df5, 0x9f7cff, 0xffffff]
+    for (let i = 0; i < 150; i++) {
+      nearPos.push((Math.random() - 0.5) * 180, Math.random() * 45 + 8, (Math.random() - 0.5) * 180)
+      const c = new THREE.Color(colors[Math.floor(Math.random() * colors.length)])
+      nearCol.push(c.r, c.g, c.b)
+    }
+    near.setAttribute('position', new THREE.Float32BufferAttribute(nearPos, 3))
+    near.setAttribute('color', new THREE.Float32BufferAttribute(nearCol, 3))
+    const nearMat = new THREE.PointsMaterial({
+      color: 0xffffff, size: 0.3, transparent: true, opacity: 0.9,
+      sizeAttenuation: true, vertexColors: true,
+    })
+    const nearPts = new THREE.Points(near, nearMat)
+    this.scene.add(nearPts)
+    this.starParticles = nearPts
+  }
+
+  /** 漂浮的空间站模块作为背景装饰（缓慢旋转漂浮） */
+  private buildSpaceDecor() {
+    const names = ['corridor', 'room-small', 'room-large', 'gate']
+    const positions: [number, number, number][] = [
+      [-20, 8, -16], [20, 12, -18], [-18, 16, 12], [22, 6, 18],
+      [0, 20, -22], [16, 18, 4], [-24, 10, 2], [8, 22, 20],
+    ]
+    names.forEach((n, i) => {
+      const pos = positions[i % positions.length]
+      void spawnModel(n, undefined, 'space').then((m) => {
+        if (!m) return
+        m.position.set(pos[0], pos[1], pos[2])
+        const s = 0.8 + Math.random() * 0.6
+        m.scale.setScalar(s)
+        m.rotation.y = Math.random() * Math.PI * 2
+        ;(m as any).userData = { spin: (Math.random() - 0.5) * 0.15, floatAmp: 0.3 + Math.random() * 0.4, floatSpeed: 0.3 + Math.random() * 0.4, baseY: pos[1] }
+        this.decorObjects.push(m)
+        this.scene.add(m)
+      })
+    })
+  }
+
+  /** 爆炸粒子特效 */
+  private spawnExplosion(x: number, y: number, z: number, color: number) {
+    const geo = new THREE.BufferGeometry()
+    const count = 12
+    const pos = new Float32Array(count * 3)
+    const vel: THREE.Vector3[] = []
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = x
+      pos[i * 3 + 1] = y
+      pos[i * 3 + 2] = z
+      vel.push(new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 3 + 1, (Math.random() - 0.5) * 3))
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    const mat = new THREE.PointsMaterial({ color, size: 0.18, transparent: true, opacity: 1 })
+    const pts = new THREE.Points(geo, mat)
+    this.group.add(pts)
+    this.explosionParticles.push({ mesh: pts, vel, life: 0.7 })
+  }
+
+  /** 更新动画：星空漂移、装饰漂浮旋转、爆炸粒子、敌人/塔动画 */
+  private animate(dt: number) {
+    const t = this.time
+    // 星空缓慢旋转
+    if (this.starParticles) {
+      this.starParticles.rotation.y += dt * 0.01
+    }
+    // 装饰漂浮旋转
+    for (const d of this.decorObjects) {
+      const u = (d as any).userData
+      d.rotation.y += dt * u.spin
+      d.position.y = u.baseY + Math.sin(t * u.floatSpeed) * u.floatAmp
+    }
+    // 爆炸粒子
+    for (const ep of this.explosionParticles) {
+      ep.life -= dt
+      const posAttr = ep.mesh.geometry.getAttribute('position') as THREE.BufferAttribute
+      for (let i = 0; i < ep.vel.length; i++) {
+        ep.vel[i].y -= dt * 5
+        posAttr.setXYZ(i,
+          posAttr.getX(i) + ep.vel[i].x * dt,
+          posAttr.getY(i) + ep.vel[i].y * dt,
+          posAttr.getZ(i) + ep.vel[i].z * dt)
+      }
+      posAttr.needsUpdate = true
+      ;(ep.mesh.material as THREE.PointsMaterial).opacity = Math.max(0, ep.life / 0.7)
+      if (ep.life <= 0) ep.mesh.removeFromParent()
+    }
+    this.explosionParticles = this.explosionParticles.filter((e) => e.mesh.parent)
+    // 敌人自旋动画
+    for (const en of this.enemies) {
+      en.mesh.rotation.y += dt * 0.6
+    }
+    // 塔炮台旋转瞄准（只转武器子节点，不转塔身）
+    for (const tw of this.towers) {
+      if (tw.target && !tw.target.dead) {
+        const dir = Math.atan2(tw.target.mesh.position.z - tw.z, tw.target.mesh.position.x - tw.x)
+        // 最后一个子节点是武器（挂载的 GLB）
+        const weapon = tw.mesh.children[tw.mesh.children.length - 1]
+        if (weapon) weapon.rotation.y = dir - Math.PI / 2
+      }
+    }
   }
 
   private towerMesh(type: TowerType, level = 1): THREE.Object3D {
@@ -679,7 +807,7 @@ export class TowerGame {
         continue
       }
       const pos = curve.getPointAt(Math.min(en.progress / this.pathLen, 1))
-      en.mesh.position.copy(pos)
+      en.mesh.position.set(pos.x, 0.4 + Math.sin(this.time * 2.2 + en.progress) * 0.1, pos.z)
       // 朝向
       const t2 = Math.min((en.progress + 0.8) / this.pathLen, 1)
       const pos2 = curve.getPointAt(t2)
@@ -895,6 +1023,8 @@ export class TowerGame {
     this.kills++
     this.credits += en.reward
     this.events.onCredits(this.credits)
+    // 死亡爆炸粒子
+    this.spawnExplosion(en.mesh.position.x, 1, en.mesh.position.z, ENEMY_DEFS[en.def].color)
     en.mesh.removeFromParent()
     // 分裂者：死后分裂
     const def = ENEMY_DEFS[en.def]
@@ -997,6 +1127,8 @@ export class TowerGame {
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop)
     const dt = Math.min(this.clock.getDelta() * this.speed, 0.1)
+    this.time += dt
+    this.animate(dt)
     if (!this.gameOver) this.update(dt)
     else this.updateFx(dt)
     this.renderer.render(this.scene, this.camera)

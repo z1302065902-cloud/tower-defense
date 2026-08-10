@@ -10,8 +10,8 @@ const cache = new Map<string, Promise<THREE.Object3D | null>>()
 // 模型路径前缀（GitHub Pages 子路径由 Vite base 处理）
 const BASE = (import.meta as any).env?.BASE_URL || '/'
 
-export function modelUrl(name: string): string {
-  return `${BASE}assets/kenney/${name}.glb`
+export function modelUrl(name: string, dir = 'kenney'): string {
+  return `${BASE}assets/${dir}/${name}.glb`
 }
 
 /**
@@ -19,14 +19,14 @@ export function modelUrl(name: string): string {
  * 缓存 Promise，多个实例共享一次加载。
  * 失败返回 null（网络/资源不存在时优雅回退）。
  */
-export function loadModel(name: string): Promise<THREE.Object3D | null> {
-  const key = name
+export function loadModel(name: string, dir = 'kenney'): Promise<THREE.Object3D | null> {
+  const key = `${dir}/${name}`
   const cached = cache.get(key)
   if (cached) return cached
 
   const p = new Promise<THREE.Object3D | null>((resolve) => {
     loader.load(
-      modelUrl(name),
+      modelUrl(name, dir),
       (gltf) => resolve(gltf.scene),
       undefined,
       () => resolve(null), // 加载失败 → null
@@ -48,26 +48,31 @@ export const TOWER_MODEL_MAP: Record<string, { body: string; weapon?: string; sc
   plasma: { body: 'tower-square-build-b', weapon: 'weapon-cannon', scale: 0.95 },
 }
 
-// 敌人类型 → Kenney 模型映射（scout/raider/tank/swarm/splitter/shielded/healer → UFO 系列, boss → 最大的）
+// 敌人类型 → Kenney 模型映射（每种用不同 UFO 型号 + 是否带武器，视觉差异化）
 export const ENEMY_MODEL_MAP: Record<string, { model: string; scale: number }> = {
-  scout:   { model: 'enemy-ufo-a', scale: 0.6 },
-  raider:  { model: 'enemy-ufo-b', scale: 0.8 },
-  tank:    { model: 'enemy-ufo-c', scale: 1.1 },
-  swarm:   { model: 'enemy-ufo-a', scale: 0.4 },
-  boss:    { model: 'enemy-ufo-d', scale: 2.2 },
+  scout:    { model: 'enemy-ufo-a', scale: 0.6 },
+  raider:   { model: 'enemy-ufo-b-weapon', scale: 0.8 },
+  tank:     { model: 'enemy-ufo-c-weapon', scale: 1.1 },
+  swarm:    { model: 'enemy-ufo-a', scale: 0.4 },
+  boss:     { model: 'enemy-ufo-d-weapon', scale: 2.2 },
   splitter: { model: 'enemy-ufo-b', scale: 0.85 },
   shielded: { model: 'enemy-ufo-c', scale: 0.95 },
-  healer:  { model: 'enemy-ufo-b', scale: 0.85 },
+  healer:   { model: 'enemy-ufo-b-weapon', scale: 0.85 },
 }
+
+// 背景装饰模型（空间站模块）
+export const DECOR_MODELS: string[] = ['corridor', 'room-small', 'room-large', 'gate']
 
 // 预加载清单（挂载时并行拉取，避免游戏中卡顿）
 export const PRELOAD_MODELS: string[] = Array.from(new Set([
   ...Object.values(TOWER_MODEL_MAP).flatMap((m) => [m.body, m.weapon].filter(Boolean) as string[]),
   ...Object.values(ENEMY_MODEL_MAP).map((m) => m.model),
+  ...DECOR_MODELS,
 ]))
 
 export function preloadAll() {
   PRELOAD_MODELS.forEach((n) => void loadModel(n))
+  DECOR_MODELS.forEach((n) => void loadModel(n, 'space'))
 }
 
 /** 给模型应用统一的材质参数（金属感/粗糙度/发光），让它融入场景 */
@@ -93,8 +98,8 @@ export function applyModelTint(obj: THREE.Object3D, color: number, emissiveInten
 }
 
 /** 获取模型并克隆 + 应用着色 */
-export async function spawnModel(name: string, color?: number): Promise<THREE.Object3D | null> {
-  const src = await loadModel(name)
+export async function spawnModel(name: string, color?: number, dir = 'kenney'): Promise<THREE.Object3D | null> {
+  const src = await loadModel(name, dir)
   if (!src) return null
   const clone = src.clone(true)
   if (color !== undefined) applyModelTint(clone, color)
