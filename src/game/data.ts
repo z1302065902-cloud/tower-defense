@@ -57,6 +57,61 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
   },
 }
 
+// ===== 塔分支升级（满级后三选一特殊化） =====
+export type BranchId = 'rapid' | 'pierce' | 'crit' | 'bigboom' | 'cluster' | 'burn' | 'superbeam' | 'twin' | 'focus' | 'deepfreeze' | 'icefrag' | 'aurora' | 'chainplus' | 'overload' | 'static' | 'bless' | 'aura' | 'haste' | 'nuke' | 'railgun' | 'firestorm'
+
+export interface BranchDef {
+  id: BranchId
+  name: string
+  desc: string
+  /** 效果：伤害倍率 / 额外效果 */
+  dmgMul: number
+  extra?: 'pierce' | 'burn' | 'ice' | 'chain' | 'splash' | 'slow' | 'crit'
+}
+
+export const TOWER_BRANCHES: Record<string, BranchDef[]> = {
+  pulse: [
+    { id: 'rapid', name: '速射', desc: '攻速+60%，火力压制', dmgMul: 0.7, extra: 'burn' },
+    { id: 'pierce', name: '穿透', desc: '子弹穿透 3 个敌人', dmgMul: 0.9, extra: 'pierce' },
+    { id: 'crit', name: '暴击', desc: '30% 概率 3 倍伤害', dmgMul: 1.1, extra: 'crit' },
+  ],
+  missile: [
+    { id: 'bigboom', name: '巨爆', desc: '爆炸范围+50%', dmgMul: 1.2, extra: 'splash' },
+    { id: 'cluster', name: '集束', desc: '分裂 3 枚小弹', dmgMul: 0.8, extra: 'burn' },
+    { id: 'burn', name: '燃烧', desc: '点燃敌人持续掉血', dmgMul: 0.9, extra: 'burn' },
+  ],
+  beam: [
+    { id: 'superbeam', name: '超光束', desc: '伤害+80%', dmgMul: 1.8, extra: 'burn' },
+    { id: 'twin', name: '双联', desc: '同时攻击 2 个敌人', dmgMul: 0.8, extra: 'pierce' },
+    { id: 'focus', name: '聚焦', desc: '射程+40%', dmgMul: 1.1, extra: 'slow' },
+  ],
+  slow: [
+    { id: 'deepfreeze', name: '深冻', desc: '减速到 15%', dmgMul: 0, extra: 'slow' },
+    { id: 'icefrag', name: '冰爆', desc: '被减速敌人受额外伤害', dmgMul: 1.3, extra: 'ice' },
+    { id: 'aurora', name: '极光', desc: '范围+50%', dmgMul: 0, extra: 'slow' },
+  ],
+  frost: [
+    { id: 'deepfreeze', name: '深冻', desc: '减速到 10%', dmgMul: 0, extra: 'slow' },
+    { id: 'icefrag', name: '冰爆', desc: '被减速敌人受额外伤害', dmgMul: 1.5, extra: 'ice' },
+    { id: 'aurora', name: '极光', desc: '范围+50%', dmgMul: 0, extra: 'slow' },
+  ],
+  storm: [
+    { id: 'chainplus', name: '链增', desc: '闪电多弹 3 次', dmgMul: 0.9, extra: 'chain' },
+    { id: 'overload', name: '过载', desc: '伤害+70%', dmgMul: 1.7, extra: 'chain' },
+    { id: 'static', name: '静电场', desc: '命中后减速', dmgMul: 1.0, extra: 'slow' },
+  ],
+  amp: [
+    { id: 'bless', name: '祝福', desc: '增幅提升到 50%', dmgMul: 0, extra: 'slow' },
+    { id: 'aura', name: '光环', desc: '增幅范围+50%', dmgMul: 0, extra: 'slow' },
+    { id: 'haste', name: '迅捷', desc: '被增幅塔攻速+25%', dmgMul: 0, extra: 'slow' },
+  ],
+  plasma: [
+    { id: 'nuke', name: '核爆', desc: '爆炸范围+60%', dmgMul: 1.4, extra: 'splash' },
+    { id: 'railgun', name: '轨道炮', desc: '伤害+100%，穿透', dmgMul: 2.0, extra: 'pierce' },
+    { id: 'firestorm', name: '火风暴', desc: '点燃大片区域', dmgMul: 1.1, extra: 'burn' },
+  ],
+}
+
 // ===== 敌人类型 =====
 export type EnemyType = 'scout' | 'raider' | 'tank' | 'swarm' | 'boss' | 'splitter' | 'shielded' | 'healer'
 
@@ -98,12 +153,14 @@ export interface MapDef {
   startCredits: number
   startLives: number
   free: boolean // 试玩免费
+  story?: string // 关卡剧情简报
 }
 
 export const MAPS: MapDef[] = [
   {
     id: 'alpha', name: '阿尔法哨站', waves: 12, free: true,
     startCredits: 120, startLives: 20,
+    story: '哨站的雷达捕捉到异常信号——紫色舰队正在逼近。指挥官，你的第一道防线就设在这里。',
     path: [
       [-14, -9], [0, -9], [0, 9], [-7, 9], [-7, -1], [10, -1], [10, 7], [14, 7],
     ],
@@ -111,6 +168,7 @@ export const MAPS: MapDef[] = [
   {
     id: 'beta', name: '贝塔防线', waves: 14, free: true,
     startCredits: 130, startLives: 20,
+    story: '斥候回报：劫掠者绕过了哨站，直奔第二防线。这次它们带着重型装甲，别轻敌。',
     path: [
       [-14, 0], [-4, 0], [-4, -8], [4, -8], [4, 4], [12, 4], [12, -4], [14, -4],
     ],
@@ -118,6 +176,7 @@ export const MAPS: MapDef[] = [
   {
     id: 'gamma', name: '伽马迷宫', waves: 16, free: false,
     startCredits: 150, startLives: 22,
+    story: '迷宫深处传来低沉的轰鸣。分裂者在这里繁殖，护盾舰为它们开路。守住岔路口。',
     path: [
       [-14, -10], [-14, 0], [-6, 0], [-6, 8], [2, 8], [2, -8], [8, -8], [8, 4], [14, 4],
     ],
@@ -125,6 +184,7 @@ export const MAPS: MapDef[] = [
   {
     id: 'delta', name: '德尔塔星环', waves: 18, free: false,
     startCredits: 160, startLives: 22,
+    story: '星环基地传来求援——治疗舰正在给整支舰队回血。必须先解决它们，否则打不完。',
     path: [
       [0, -14], [0, -6], [-8, -6], [-8, 2], [6, 2], [6, -2], [-2, -2], [-2, 8], [8, 8], [8, 12],
     ],
@@ -132,6 +192,7 @@ export const MAPS: MapDef[] = [
   {
     id: 'omega', name: '欧米茄终局', waves: 20, free: false,
     startCredits: 180, startLives: 25,
+    story: '前方就是敌方旗舰——「湮灭者」。击败它，这场入侵就结束了。这是最后的战役。',
     path: [
       [-14, -10], [6, -10], [6, -2], [-6, -2], [-6, 6], [12, 6], [12, -6], [-12, -6], [-12, 8], [0, 8], [0, 12],
     ],
@@ -139,6 +200,7 @@ export const MAPS: MapDef[] = [
   {
     id: 'sigma', name: '西格玛岔路', waves: 22, free: false,
     startCredits: 190, startLives: 25,
+    story: '岔路口是伏击的好地方。舰队在这里兵分三路，你的炮塔也必须学会分身。',
     path: [
       [-14, -10], [-14, 8], [0, 8], [0, -4], [8, -4], [8, 6], [14, 6],
     ],
@@ -146,6 +208,7 @@ export const MAPS: MapDef[] = [
   {
     id: 'tau', name: '陶双入口', waves: 24, free: false,
     startCredits: 210, startLives: 28,
+    story: '敌舰从两个方向同时涌入——这是它们最擅长的夹击战术。左右都要守住！',
     path: [
       [-14, -12], [-6, -12], [-6, 0], [-2, 0], [-2, -8], [4, -8], [4, 6], [10, 6], [10, -2], [14, -2],
     ],
@@ -153,6 +216,7 @@ export const MAPS: MapDef[] = [
   {
     id: 'phi', name: '斐迷宫', waves: 26, free: false,
     startCredits: 230, startLives: 30,
+    story: '最终迷宫的入口已经打开。「湮灭者」就在这里。带上你最强的阵型，没有退路了。',
     path: [
       [-14, -12], [-14, 4], [-8, 4], [-8, -6], [0, -6], [0, 8], [6, 8], [6, -2], [12, -2], [12, 10],
     ],

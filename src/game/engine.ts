@@ -2,7 +2,7 @@
 
 import * as THREE from 'three'
 import {
-  TOWER_DEFS, ENEMY_DEFS, waveFor, basePosition,
+  TOWER_DEFS, ENEMY_DEFS, waveFor, basePosition, TOWER_BRANCHES,
   type MapDef, type TowerType, type EnemyType,
 } from './data'
 import { TOWER_MODEL_MAP, ENEMY_MODEL_MAP, spawnModel, preloadAll } from './assets'
@@ -19,6 +19,7 @@ export interface TowerInstance {
   flashT: number
   invested: number
   buffMul?: number // 增幅塔加成
+  branch?: import('./data').BranchId // 满级分支选择
 }
 
 export interface EnemyInstance {
@@ -36,6 +37,9 @@ export interface EnemyInstance {
   dead: boolean
   hitFlash: number
   healT: number // healer 治疗计时
+  burnT?: number // 燃烧剩余时间
+  burnDps?: number // 燃烧每秒伤害
+  hpBar?: { bg: THREE.Mesh; fill: THREE.Mesh }
 }
 
 /** 局外科技加成 */
@@ -68,7 +72,7 @@ export class TowerGame {
 
   towers: TowerInstance[] = []
   enemies: EnemyInstance[] = []
-  projectiles: { mesh: THREE.Mesh; target: EnemyInstance; speed: number; damage: number; type: 'bullet' | 'missile'; splash: number; hit?: boolean }[] = []
+  projectiles: { mesh: THREE.Mesh; target: EnemyInstance; speed: number; damage: number; type: 'bullet' | 'missile'; splash: number; pierce?: number; burn?: boolean; hit?: boolean }[] = []
   beams: { mesh: THREE.Mesh; life: number }[] = []
 
   credits: number
@@ -257,6 +261,79 @@ export class TowerGame {
   private decorObjects: THREE.Object3D[] = []
   private explosionParticles: { mesh: THREE.Points; vel: THREE.Vector3[]; life: number }[] = []
   private nebulaBg: THREE.Mesh | null = null
+  // 战斗反馈：飘字 + 血条
+  private floatLayer: HTMLDivElement | null = null
+  private damageNumbers: { el: HTMLDivElement; life: number; y: number }[] = []
+  private rangeRing: THREE.Mesh | null = null
+
+  /** 创建浮动文字层（飘字用 DOM，投影到屏幕坐标） */
+  private initFloatLayer() {
+    if (this.floatLayer) return
+    const layer = document.createElement('div')
+    layer.id = 'float-layer'
+    layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:15;overflow:hidden;'
+    document.getElementById('app')?.appendChild(layer)
+    this.floatLayer = layer
+  }
+
+  /** 在世界坐标生成飘字（伤害/金币） */
+  private spawnFloatText(text: string, worldPos: THREE.Vector3, color: string, big = false) {
+    if (!this.floatLayer) this.initFloatLayer()
+    const el = document.createElement('div')
+    el.textContent = text
+    el.style.cssText = `position:absolute;left:0;top:0;font-weight:800;font-size:${big ? 20 : 14}px;color:${color};text-shadow:0 1px 3px rgba(0,0,0,0.6);transform:translate(-50%,-50%);transition:opacity 0.5s ease;white-space:nowrap;font-family:inherit;`
+    this.floatLayer!.appendChild(el)
+    this.damageNumbers.push({ el, life: 0.7, y: 0 })
+    const d = this.damageNumbers[this.damageNumbers.length - 1]
+    ;(d as any).world = worldPos.clone()
+  }
+
+  /** 把世界坐标投影到屏幕像素（用于定位飘字） */
+  private projectToScreen(v: THREE.Vector3): { x: number; y: number } | null {
+    const v2 = v.clone().project(this.camera)
+    if (v2.z > 1 || v2.z < -1) return null
+    return {
+      x: (v2.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-v2.y * 0.5 + 0.5) * window.innerHeight,
+    }
+  }
+
+  /** 更新飘字位置和淡出 */
+  private updateFloatText(dt: number) {
+    for (const d of this.damageNumbers) {
+      d.life -= dt
+      d.y += 30 * dt
+      const p = this.projectToScreen((d as any).world as THREE.Vector3)
+      if (p) {
+        d.el.style.left = `${p.x}px`
+        d.el.style.top = `${p.y - d.y}px`
+      }
+      d.el.style.opacity = String(Math.max(0, Math.min(1, d.life / 0.3)))
+      if (d.life <= 0) d.el.remove()
+    }
+    this.damageNumbers = this.damageNumbers.filter((d) => d.life > 0)
+  }
+
+  /** 显示射程圈（建造/选中塔时） */
+  private showRangeRing(x: number, z: number, radius: number) {
+    if (this.rangeRing) {
+      this.rangeRing.position.set(x, 0.05, z)
+      this.rangeRing.scale.setScalar(radius)
+      this.rangeRing.visible = true
+    } else {
+      const geo = new THREE.RingGeometry(0.95, 1, 32)
+      const mat = new THREE.MeshBasicMaterial({ color: 0xfff4d8, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+      const ring = new THREE.Mesh(geo, mat)
+      ring.rotation.x = -Math.PI / 2
+      ring.position.set(x, 0.05, z)
+      ring.scale.setScalar(radius)
+      this.group.add(ring)
+      this.rangeRing = ring
+    }
+  }
+  private hideRangeRing() {
+    if (this.rangeRing) this.rangeRing.visible = false
+  }
 
   /**
    * 程序化星云天空背景：Canvas 生成深蓝紫渐变 + 彩色星云光斑 + 星星，
@@ -461,6 +538,14 @@ export class TowerGame {
         const weapon = tw.mesh.children[tw.mesh.children.length - 1]
         if (weapon) weapon.rotation.y = dir - Math.PI / 2
       }
+      // 后座力：开火瞬间武器轻微后缩（flashT 是开火标记）
+      if (tw.flashT > 0) {
+        const weapon = tw.mesh.children[tw.mesh.children.length - 1]
+        if (weapon) weapon.position.z = 0.2
+      } else {
+        const weapon = tw.mesh.children[tw.mesh.children.length - 1]
+        if (weapon && weapon.position.z !== 0) weapon.position.z = 0
+      }
     }
   }
 
@@ -642,8 +727,13 @@ export class TowerGame {
     this.selectedTower = t
     this.buildingType = null
     this.updateGhost()
-    if (t) this.showPanel(t)
-    else this.hidePanel()
+    if (t) {
+      this.showPanel(t)
+      this.showRangeRing(t.x, t.z, TOWER_DEFS[t.def].range * this.mods.rangeMul)
+    } else {
+      this.hidePanel()
+      this.hideRangeRing()
+    }
   }
 
   setSpeed(s: number) { this.speed = s }
@@ -661,7 +751,13 @@ export class TowerGame {
     const t = this.selectedTower
     if (!t) return
     const def = TOWER_DEFS[t.def]
-    if (t.level >= def.maxLevel) return
+    if (t.level >= def.maxLevel) {
+      // 满级后没有选过分支 → 弹出分支选择
+      if (!t.branch) {
+        this.showBranchPanel(t)
+      }
+      return
+    }
     const cost = this.upgradeCost(t)
     if (this.credits < cost) return
     this.credits -= cost
@@ -756,6 +852,8 @@ export class TowerGame {
     this.buildingGhost.position.set(p.x, 0.02, p.z)
     this.buildingGhost.visible = true
     ;(this.buildingGhost.material as THREE.MeshBasicMaterial).color.setHex(ok ? 0x4ade80 : 0xff5d5d)
+    // 建造时显示射程圈
+    this.showRangeRing(p.x, p.z, TOWER_DEFS[this.buildingType].range * this.mods.rangeMul)
   }
 
   private canPlace(type: TowerType, x: number, z: number): boolean {
@@ -828,6 +926,9 @@ export class TowerGame {
       this.buildingGhost.removeFromParent()
       this.buildingGhost = null
     }
+    if (!this.buildingType) {
+      this.hideRangeRing()
+    }
     if (this.buildingType) {
       const g = new THREE.Mesh(
         new THREE.CylinderGeometry(0.8, 0.8, 0.4, 20),
@@ -849,7 +950,7 @@ export class TowerGame {
     const upCostEl = document.getElementById('panel-upgrade-cost')!
     const sellEl = document.getElementById('panel-sell-value')!
     const panel = document.getElementById('tower-panel')!
-    nameEl.textContent = `${def.name} Lv.${t.level}`
+    nameEl.textContent = `${def.name} Lv.${t.level}${t.branch ? ' · ' + this.branchName(t.branch) : ''}`
     let dmg = '辅助'
     if (t.def === 'slow' || t.def === 'frost') dmg = '减速'
     else if (t.def === 'amp') dmg = `增幅 ×${(def.buffDamageMul! * Math.pow(def.upgradeMultiplier, t.level - 1)).toFixed(2)}`
@@ -857,14 +958,66 @@ export class TowerGame {
     infoEl.textContent = `${dmg} · 射程 ${def.range}`
     const canUp = t.level < def.maxLevel && this.credits >= this.upgradeCost(t)
     upEl.disabled = !canUp
-    if (t.level >= def.maxLevel) upCostEl.textContent = '满级'
-    else upCostEl.textContent = String(this.upgradeCost(t))
+    if (t.level >= def.maxLevel) {
+      upCostEl.textContent = t.branch ? '已进化' : '进化'
+    } else {
+      upCostEl.textContent = String(this.upgradeCost(t))
+    }
     sellEl.textContent = String(this.sellValue(t))
     panel.classList.remove('hidden')
   }
 
   private hidePanel() {
     document.getElementById('tower-panel')!.classList.add('hidden')
+    this.hideBranchPanel()
+  }
+
+  private branchName(id: string): string {
+    for (const arr of Object.values(TOWER_BRANCHES)) {
+      const b = arr.find((x) => x.id === id)
+      if (b) return b.name
+    }
+    return ''
+  }
+
+  /** 满级后弹出分支三选一 */
+  private showBranchPanel(t: TowerInstance) {
+    const branches = TOWER_BRANCHES[t.def] || []
+    if (!branches.length) return
+    const panel = document.getElementById('branch-panel')!
+    const opts = document.getElementById('branch-options')!
+    opts.innerHTML = ''
+    branches.forEach((b) => {
+      const div = document.createElement('div')
+      div.className = 'branch-opt'
+      div.innerHTML = `
+        <div>
+          <div class="bo-name">${b.name}</div>
+          <div class="bo-desc">${b.desc}</div>
+        </div>
+        <div style="color:#E8A33A;font-weight:700">→</div>
+      `
+      div.addEventListener('click', () => this.chooseBranch(t, b.id))
+      opts.appendChild(div)
+    })
+    panel.classList.remove('hidden')
+  }
+  private hideBranchPanel() {
+    document.getElementById('branch-panel')!.classList.add('hidden')
+  }
+
+  /** 应用分支效果 */
+  private chooseBranch(t: TowerInstance, id: string) {
+    t.branch = id as import('./data').BranchId
+    this.hideBranchPanel()
+    this.showPanel(t)
+    // 视觉：塔身变亮（进化感）
+    t.mesh.traverse((ch) => {
+      if ((ch as THREE.Mesh).isMesh) {
+        const m = (ch as THREE.Mesh).material as any
+        if (m && m.emissive) m.emissiveIntensity = 0.8
+      }
+    })
   }
 
   private update(dt: number) {
@@ -902,6 +1055,16 @@ export class TowerGame {
         en.slowT -= dt
         sp *= en.slowFactor
       }
+      // 燃烧 DoT
+      if (en.burnT && en.burnT > 0) {
+        en.burnT -= dt
+        en.hp -= (en.burnDps || 0) * dt
+        if (en.burnT <= 0) en.burnT = undefined
+        if (en.hp <= 0) {
+          this.killEnemy(en)
+          continue
+        }
+      }
       en.progress += sp * dt
       // 治疗者：周期性给周围敌人回血
       const healDef = ENEMY_DEFS[en.def]
@@ -932,6 +1095,7 @@ export class TowerGame {
       }
       const pos = curve.getPointAt(Math.min(en.progress / this.pathLen, 1))
       en.mesh.position.set(pos.x, 0.4 + Math.sin(this.time * 2.2 + en.progress) * 0.1, pos.z)
+      this.updateHealthBar(en)
       // 朝向
       const t2 = Math.min((en.progress + 0.8) / this.pathLen, 1)
       const pos2 = curve.getPointAt(t2)
@@ -986,20 +1150,29 @@ export class TowerGame {
       }
       if (!best) continue
       t.target = best
-      t.cooldown = 1 / (def.fireRate * rateMul)
+      t.cooldown = 1 / (def.fireRate * rateMul * this.branchRateMul(t))
       // 开火视觉
       t.flashT = 0.12
-      const dmg = Math.round(def.damage * Math.pow(def.upgradeMultiplier, t.level - 1) * this.mods.damageMul * (t.buffMul || 1))
+      // 分支伤害倍率
+      const br = t.branch ? TOWER_BRANCHES[t.def]?.find((b) => b.id === t.branch) : undefined
+      let dmg = Math.round(def.damage * Math.pow(def.upgradeMultiplier, t.level - 1) * this.mods.damageMul * (t.buffMul || 1) * (br?.dmgMul || 1))
+      // 暴击分支
+      if (br?.extra === 'crit' && Math.random() < 0.3) dmg = Math.round(dmg * 3)
+      // 穿透 / 燃烧 / 溅射分支
+      const pierce = br?.extra === 'pierce' ? 3 : 0
+      const burn = br?.extra === 'burn'
+      const splash = br?.extra === 'splash'
       if (t.def === 'missile') {
-        this.projectiles.push({ mesh: this.makeProjectile(def.color, t.x, t.z), target: best, speed: 10, damage: dmg, type: 'missile', splash: def.splashRadius! })
+        const sp = splash ? def.splashRadius! * 1.5 : def.splashRadius!
+        this.projectiles.push({ mesh: this.makeProjectile(def.color, t.x, t.z), target: best, speed: 10, damage: dmg, type: 'missile', splash: sp, pierce, burn })
       } else if (t.def === 'beam') {
         this.fireBeam(t, best, dmg)
       } else if (t.def === 'storm') {
-        this.fireChain(t, best, dmg, def.chainCount!)
+        this.fireChain(t, best, dmg, br?.extra === 'chain' ? def.chainCount! + 3 : def.chainCount!)
       } else if (t.def === 'plasma') {
         this.fireBeam(t, best, dmg, 0.18)
       } else {
-        this.projectiles.push({ mesh: this.makeProjectile(def.color, t.x, t.z), target: best, speed: 14, damage: dmg, type: 'bullet', splash: 0 })
+        this.projectiles.push({ mesh: this.makeProjectile(def.color, t.x, t.z), target: best, speed: 14, damage: dmg, type: 'bullet', splash: 0, pierce, burn })
       }
     }
     // 重置未受增幅的塔
@@ -1022,6 +1195,22 @@ export class TowerGame {
       if (dist < 0.4) {
         // 命中
         this.damageEnemy(pr.target, pr.damage, pr.splash)
+        if (pr.burn) this.applyBurn(pr.target, pr.damage * 0.3)
+        // 穿透：继续命中下一个敌人
+        if (pr.pierce && pr.pierce > 0) {
+          let next: EnemyInstance | null = null
+          let bestProg = -1
+          for (const en of this.enemies) {
+            if (en === pr.target || en.dead) continue
+            const d = en.mesh.position.distanceTo(pr.mesh.position)
+            if (d < 4 && en.progress > bestProg) { bestProg = en.progress; next = en }
+          }
+          if (next) {
+            pr.pierce--
+            pr.target = next
+            continue
+          }
+        }
         pr.mesh.removeFromParent()
         pr.hit = true
       } else {
@@ -1110,6 +1299,21 @@ export class TowerGame {
     this.beams.push({ mesh, life: 0.1 })
   }
 
+  /** 分支：攻速倍率（速射分支） */
+  private branchRateMul(t: TowerInstance): number {
+    if (!t.branch) return 1
+    const br = TOWER_BRANCHES[t.def]?.find((b) => b.id === t.branch)
+    if (br?.id === 'rapid') return 1.6
+    return 1
+  }
+
+  /** 燃烧 DoT：给敌人挂燃烧（用 slowT 槽位复用计时器） */
+  private applyBurn(en: EnemyInstance, dps: number) {
+    if (en.dead || en.burnT) return
+    en.burnT = 2
+    en.burnDps = dps
+  }
+
   private damageEnemy(en: EnemyInstance, dmg: number, splash: number) {
     if (en.dead) return
     // 护盾优先吸收
@@ -1122,6 +1326,10 @@ export class TowerGame {
     if (dmg > 0) {
       en.hp -= dmg
       en.hitFlash = 0.15
+      // 伤害飘字（金色暴击感）
+      const p = en.mesh.position.clone()
+      p.y += 0.8
+      this.spawnFloatText(String(dmg), p, splash > 0 ? '#ffd166' : '#ffffff')
     }
     if (splash > 0) {
       // 溅射：伤害范围敌人
@@ -1147,8 +1355,11 @@ export class TowerGame {
     this.kills++
     this.credits += en.reward
     this.events.onCredits(this.credits)
-    // 死亡爆炸粒子
+    // 死亡爆炸粒子 + 金币飘字
     this.spawnExplosion(en.mesh.position.x, 1, en.mesh.position.z, ENEMY_DEFS[en.def].color)
+    const gp = en.mesh.position.clone()
+    gp.y += 1.2
+    this.spawnFloatText(`+${en.reward}◈`, gp, '#ffd166', true)
     en.mesh.removeFromParent()
     // 分裂者：死后分裂
     const def = ENEMY_DEFS[en.def]
@@ -1159,6 +1370,39 @@ export class TowerGame {
     }
   }
 
+  /** 给敌人挂血条（3D 世界里的微型条，跟随敌人） */
+  private attachHealthBar(en: EnemyInstance) {
+    if (en.hpBar) return
+    const group = new THREE.Group()
+    const w = 1.1 * (ENEMY_DEFS[en.def].scale || 1)
+    const bg = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, 0.14),
+      new THREE.MeshBasicMaterial({ color: 0x4a3a28, transparent: true, opacity: 0.7, depthTest: false }),
+    )
+    const fill = new THREE.Mesh(
+      new THREE.PlaneGeometry(w - 0.04, 0.1),
+      new THREE.MeshBasicMaterial({ color: 0x7ee86a, depthTest: false }),
+    )
+    fill.position.z = 0.01
+    group.add(bg)
+    group.add(fill)
+    group.position.y = (ENEMY_DEFS[en.def].scale || 1) * 1.3 + 0.2
+    en.mesh.add(group)
+    en.hpBar = { bg, fill }
+    this.updateHealthBar(en)
+  }
+
+  /** 更新血条填充比例 */
+  private updateHealthBar(en: EnemyInstance) {
+    if (!en.hpBar) return
+    const ratio = Math.max(0, Math.min(1, en.hp / en.maxHp))
+    en.hpBar.fill.scale.x = ratio
+    // 颜色随血量：绿→黄→红
+    ;(en.hpBar.fill.material as THREE.MeshBasicMaterial).color.setHex(
+      ratio > 0.5 ? 0x7ee86a : ratio > 0.25 ? 0xffd166 : 0xff5d5d,
+    )
+  }
+
   private spawnSplitEnemy(type: EnemyType, x: number, z: number) {
     const def = ENEMY_DEFS[type]
     const mesh = this.enemyMesh(type)
@@ -1167,12 +1411,14 @@ export class TowerGame {
     this.group.add(mesh)
     const hpScale = 1 + (this.wave - 1) * 0.22 + this.wave * this.wave * 0.015
     const hp = Math.round(def.hp * hpScale * 0.6) // 分裂体较弱
-    this.enemies.push({
+    const en: EnemyInstance = {
       def: type, hp, maxHp: hp, shield: def.shield ? Math.round(def.shield * hpScale * 0.6) : 0,
       progress: this.findNearestProgress(x, z), speed: def.speed,
       slowT: 0, slowFactor: 1, reward: def.reward, damage: def.damage,
       mesh, dead: false, hitFlash: 0, healT: 0,
-    })
+    }
+    this.enemies.push(en)
+    this.attachHealthBar(en)
   }
 
   /** 找离某个世界坐标最近的路径进度 */
@@ -1199,11 +1445,13 @@ export class TowerGame {
     const hpScale = 1 + (this.wave - 1) * 0.22 + this.wave * this.wave * 0.015
     const hp = Math.round(def.hp * hpScale)
     const shield = def.shield ? Math.round(def.shield * hpScale) : 0
-    this.enemies.push({
+    const en: EnemyInstance = {
       def: type, hp, maxHp: hp, shield, progress: 0, speed: def.speed,
       slowT: 0, slowFactor: 1, reward: def.reward, damage: def.damage,
       mesh, dead: false, hitFlash: 0, healT: 0,
-    })
+    }
+    this.enemies.push(en)
+    this.attachHealthBar(en)
     // 异步换真实 UFO 模型
     void this.mountEnemyModel(mesh, type)
   }
@@ -1255,6 +1503,7 @@ export class TowerGame {
     this.animate(dt)
     if (!this.gameOver) this.update(dt)
     else this.updateFx(dt)
+    this.updateFloatText(dt)
     this.renderer.render(this.scene, this.camera)
   }
 
