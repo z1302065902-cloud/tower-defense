@@ -11,7 +11,7 @@ import {
   isTowerUnlocked, unlockTowerCost, unlockTower,
   computeStardust, computeStars,
 } from './game/meta'
-import { initAudio, resumeAudio, setMusicOn, setSfxOn, isMusicOn, isSfxOn } from './game/audio'
+import { initAudio, resumeAudio, setMusicOn, setSfxOn, isMusicOn, isSfxOn, setMusicScene } from './game/audio'
 
 let game: TowerGame | null = null
 let currentMap: MapDef | null = null
@@ -127,6 +127,8 @@ function actuallyStartGame(map: MapDef) {
   $('end-screen').classList.add('hidden')
   if (game) { game.destroy(); game = null }
   currentCredits = map.startCredits
+  // 进入战斗场景 → 切换战斗音乐
+  setMusicScene('battle')
 
   const mods = getModifiers()
   currentCredits += mods.startCreditsBonus
@@ -235,6 +237,7 @@ function bindUI() {
   $('btn-tech-back').addEventListener('click', () => {
     $('tech-screen').classList.add('hidden')
     $('menu-screen').classList.remove('hidden')
+    setMusicScene('menu')
     buildMenu()
   })
   // 剧情简报 → 开始战斗
@@ -298,6 +301,7 @@ function bindUI() {
     if (game) { game.destroy(); game = null }
     $('end-screen').classList.add('hidden')
     $('menu-screen').classList.remove('hidden')
+    setMusicScene('menu')
     buildMenu()
   })
 
