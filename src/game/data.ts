@@ -22,36 +22,37 @@ export interface TowerDef {
 }
 
 export const TOWER_DEFS: Record<TowerType, TowerDef> = {
+  // 我方塔：暖色/友好色系（浅蓝、珊瑚、橙、金黄 为一个协调家族）
   pulse: {
-    type: 'pulse', name: '脉冲炮', cost: 50, range: 8, fireRate: 2, damage: 10, color: 0x4fd1ff,
+    type: 'pulse', name: '脉冲炮', cost: 50, range: 8, fireRate: 2, damage: 10, color: 0x6EB5FF,
     desc: '快速单目标，性价比之选', upgradeMultiplier: 1.6, maxLevel: 4,
   },
   missile: {
-    type: 'missile', name: '导弹塔', cost: 100, range: 10, fireRate: 0.7, damage: 30, color: 0xff8a3d,
+    type: 'missile', name: '导弹塔', cost: 100, range: 10, fireRate: 0.7, damage: 30, color: 0xFF9F43,
     splashRadius: 3, desc: '范围溅射，对付集群', upgradeMultiplier: 1.7, maxLevel: 4,
   },
   beam: {
-    type: 'beam', name: '光束塔', cost: 150, range: 7, fireRate: 4, damage: 14, color: 0x9f7cff,
+    type: 'beam', name: '光束塔', cost: 150, range: 7, fireRate: 4, damage: 14, color: 0xFF6F61,
     desc: '高射速持续输出，火力核心', upgradeMultiplier: 1.8, maxLevel: 4,
   },
   slow: {
-    type: 'slow', name: '减速塔', cost: 80, range: 6, fireRate: 0, damage: 0, color: 0x3dd6d0,
+    type: 'slow', name: '减速塔', cost: 80, range: 6, fireRate: 0, damage: 0, color: 0xFFC857,
     slowFactor: 0.55, slowDuration: 1.8, desc: '减速范围内敌人', upgradeMultiplier: 1.4, maxLevel: 3,
   },
   frost: {
-    type: 'frost', name: '冰霜塔', cost: 120, range: 7, fireRate: 0, damage: 0, color: 0x7ae0ff,
+    type: 'frost', name: '冰霜塔', cost: 120, range: 7, fireRate: 0, damage: 0, color: 0x8FD8FF,
     slowFactor: 0.35, slowDuration: 2.5, desc: '大范围强减速', upgradeMultiplier: 1.45, maxLevel: 4,
   },
   storm: {
-    type: 'storm', name: '电击塔', cost: 140, range: 8, fireRate: 1.1, damage: 16, color: 0xf6ff5e,
+    type: 'storm', name: '电击塔', cost: 140, range: 8, fireRate: 1.1, damage: 16, color: 0xFFE27A,
     chainCount: 3, desc: '闪电链弹射多个敌人', upgradeMultiplier: 1.7, maxLevel: 4,
   },
   amp: {
-    type: 'amp', name: '增幅塔', cost: 160, range: 5, fireRate: 0, damage: 0, color: 0xff9df5,
+    type: 'amp', name: '增幅塔', cost: 160, range: 5, fireRate: 0, damage: 0, color: 0xFF8FA3,
     buffDamageMul: 1.35, buffRange: 4, desc: '提升周围塔伤害', upgradeMultiplier: 1.3, maxLevel: 3,
   },
   plasma: {
-    type: 'plasma', name: '等离子塔', cost: 220, range: 7, fireRate: 0.8, damage: 55, color: 0xff5da2,
+    type: 'plasma', name: '等离子塔', cost: 220, range: 7, fireRate: 0.8, damage: 55, color: 0xE8554D,
     desc: '高伤穿透光束，后期主力', upgradeMultiplier: 1.9, maxLevel: 4,
   },
 }
@@ -76,14 +77,15 @@ export interface EnemyDef {
 }
 
 export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
-  scout:  { type: 'scout',  name: '侦察机', hp: 30,   speed: 4.2, reward: 8,  damage: 1, color: 0x4fd1ff, radius: 0.45, scale: 0.7 },
-  raider: { type: 'raider', name: '劫掠者', hp: 70,   speed: 3.2, reward: 14, damage: 2, color: 0xff8a3d, radius: 0.55, scale: 0.85 },
-  tank:   { type: 'tank',   name: '重装舰', hp: 220,  speed: 1.8, reward: 30, damage: 4, color: 0xff5d5d, radius: 0.75, scale: 1.1 },
-  swarm:  { type: 'swarm',  name: '蜂群',   hp: 18,   speed: 5.0, reward: 5,  damage: 1, color: 0x9f7cff, radius: 0.35, scale: 0.5 },
-  boss:   { type: 'boss',   name: '旗舰',   hp: 1600, speed: 0.9, reward: 200, damage: 10, color: 0xff3b6b, radius: 1.4, scale: 2.2 },
-  splitter:  { type: 'splitter',  name: '分裂者', hp: 90,   speed: 2.6, reward: 20, damage: 2, color: 0x58ffb0, radius: 0.6, scale: 0.95, splitInto: 'swarm', splitCount: 3 },
-  shielded:  { type: 'shielded',  name: '护盾舰', hp: 60,   speed: 2.4, reward: 18, damage: 2, color: 0x9fb8ff, radius: 0.65, scale: 1.0, shield: 80 },
-  healer:    { type: 'healer',    name: '治疗舰', hp: 110,  speed: 2.2, reward: 25, damage: 2, color: 0xffe27a, radius: 0.6, scale: 0.95, healPerSec: 14 },
+  // 敌方：冷紫色/反派色系（与暖色塔对比清晰）
+  scout:  { type: 'scout',  name: '侦察机', hp: 30,   speed: 4.2, reward: 8,  damage: 1, color: 0x9B8FFF, radius: 0.45, scale: 0.7 },
+  raider: { type: 'raider', name: '劫掠者', hp: 70,   speed: 3.2, reward: 14, damage: 2, color: 0x7A5CFF, radius: 0.55, scale: 0.85 },
+  tank:   { type: 'tank',   name: '重装舰', hp: 220,  speed: 1.8, reward: 30, damage: 4, color: 0x5E4BB8, radius: 0.75, scale: 1.1 },
+  swarm:  { type: 'swarm',  name: '蜂群',   hp: 18,   speed: 5.0, reward: 5,  damage: 1, color: 0xC9BFFF, radius: 0.35, scale: 0.5 },
+  boss:   { type: 'boss',   name: '旗舰',   hp: 1600, speed: 0.9, reward: 200, damage: 10, color: 0xE0449C, radius: 1.4, scale: 2.2 },
+  splitter:  { type: 'splitter',  name: '分裂者', hp: 90,   speed: 2.6, reward: 20, damage: 2, color: 0x3DBB8C, radius: 0.6, scale: 0.95, splitInto: 'swarm', splitCount: 3 },
+  shielded:  { type: 'shielded',  name: '护盾舰', hp: 60,   speed: 2.4, reward: 18, damage: 2, color: 0x6FB4E8, radius: 0.65, scale: 1.0, shield: 80 },
+  healer:    { type: 'healer',    name: '治疗舰', hp: 110,  speed: 2.2, reward: 25, damage: 2, color: 0xFFD166, radius: 0.6, scale: 0.95, healPerSec: 14 },
 }
 
 // ===== 地图：路径点（坐标以基地中心为原点，y=0 平面） =====
