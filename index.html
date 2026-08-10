@@ -20,26 +20,23 @@
         <div class="hud-right">
           <span class="hud-credits">◈ <b id="credits-num">100</b></span>
           <button id="btn-speed" class="hud-btn" title="变速">⏩</button>
+          <button id="btn-settings" class="hud-btn" title="设置">⚙️</button>
         </div>
       </div>
 
       <!-- 波次提示 -->
       <div id="wave-banner" class="hidden"></div>
 
-      <!-- 选塔栏 -->
+      <!-- 选塔栏（8 塔，含 4 个解锁塔） -->
       <div id="tower-bar">
-        <div class="tower-btn" data-tower="pulse" data-cost="50">
-          <div class="tower-icon pulse"></div><div class="tower-name">脉冲炮</div><div class="tower-cost">◈50</div>
-        </div>
-        <div class="tower-btn" data-tower="missile" data-cost="100">
-          <div class="tower-icon missile"></div><div class="tower-name">导弹塔</div><div class="tower-cost">◈100</div>
-        </div>
-        <div class="tower-btn" data-tower="beam" data-cost="150">
-          <div class="tower-icon beam"></div><div class="tower-name">光束塔</div><div class="tower-cost">◈150</div>
-        </div>
-        <div class="tower-btn" data-tower="slow" data-cost="80">
-          <div class="tower-icon slow"></div><div class="tower-name">减速塔</div><div class="tower-cost">◈80</div>
-        </div>
+        <div class="tower-btn" data-tower="pulse" data-cost="50"><div class="tower-icon pulse"></div><div class="tower-name">脉冲炮</div><div class="tower-cost">◈50</div></div>
+        <div class="tower-btn" data-tower="missile" data-cost="100"><div class="tower-icon missile"></div><div class="tower-name">导弹塔</div><div class="tower-cost">◈100</div></div>
+        <div class="tower-btn" data-tower="beam" data-cost="150"><div class="tower-icon beam"></div><div class="tower-name">光束塔</div><div class="tower-cost">◈150</div></div>
+        <div class="tower-btn" data-tower="slow" data-cost="80"><div class="tower-icon slow"></div><div class="tower-name">减速塔</div><div class="tower-cost">◈80</div></div>
+        <div class="tower-btn" data-tower="frost" data-cost="120"><div class="tower-icon frost"></div><div class="tower-name">冰霜塔</div><div class="tower-cost">◈120</div></div>
+        <div class="tower-btn" data-tower="storm" data-cost="140"><div class="tower-icon storm"></div><div class="tower-name">电击塔</div><div class="tower-cost">◈140</div></div>
+        <div class="tower-btn" data-tower="amp" data-cost="160"><div class="tower-icon amp"></div><div class="tower-name">增幅塔</div><div class="tower-cost">◈160</div></div>
+        <div class="tower-btn" data-tower="plasma" data-cost="220"><div class="tower-icon plasma"></div><div class="tower-name">等离子</div><div class="tower-cost">◈220</div></div>
       </div>
 
       <!-- 选中塔面板 -->
@@ -52,18 +49,52 @@
         </div>
       </div>
 
-      <!-- 地图选择 / 主菜单 -->
+      <!-- 主菜单 -->
       <div id="menu-screen" class="screen">
         <div class="menu-card">
           <h1>🛰️ 轨道塔防</h1>
           <p class="menu-sub">守卫太空基地，抵御入侵波次</p>
+          <div class="menu-top">
+            <span class="meta-chip">◈ 星尘 <b id="hud-stardust">0</b></span>
+            <span class="meta-chip">★ 星星 <b id="hud-totalstars">0</b></span>
+          </div>
           <div id="map-list"></div>
+          <div class="menu-buttons">
+            <button id="btn-tech" class="menu-btn">📈 科技树</button>
+          </div>
           <div class="menu-redeem">
             <input id="redeem-input" placeholder="输入激活码 或 爱发电订单号" />
             <button id="redeem-btn">兑换</button>
             <span id="redeem-msg"></span>
           </div>
-          <p class="menu-foot" id="menu-full-text">试玩版 · 免费体验第 1–2 关 · 完整版 ¥8 解锁全部 5 关</p>
+          <p class="menu-foot" id="menu-full-text"></p>
+        </div>
+      </div>
+
+      <!-- 科技树 -->
+      <div id="tech-screen" class="screen hidden">
+        <div class="menu-card wide">
+          <h2>📈 科技树</h2>
+          <div class="tech-top">
+            <span class="meta-chip">◈ 星尘 <b id="tech-stardust">0</b></span>
+          </div>
+          <div class="research-scroll">
+            <h3>永久强化</h3>
+            <div id="research-list"></div>
+            <h3>解锁新塔</h3>
+            <div id="tower-unlock-list"></div>
+          </div>
+          <button id="btn-tech-back" class="menu-btn">← 返回</button>
+        </div>
+      </div>
+
+      <!-- 设置弹窗 -->
+      <div id="settings-modal" class="modal hidden">
+        <div class="modal-card">
+          <h3>⚙️ 设置</h3>
+          <button id="music-toggle" class="modal-btn"></button>
+          <button id="sfx-toggle" class="modal-btn"></button>
+          <button id="settings-close" class="modal-btn primary">关闭</button>
         </div>
       </div>
 
