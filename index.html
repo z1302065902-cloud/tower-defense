@@ -49,6 +49,12 @@
         </div>
       </div>
 
+      <!-- 分支升级面板（满级三选一） -->
+      <div id="branch-panel" class="hidden">
+        <div class="branch-title">✨ 选择进化方向</div>
+        <div id="branch-options"></div>
+      </div>
+
       <!-- 主菜单 -->
       <div id="menu-screen" class="screen">
         <div class="menu-stars"></div>
@@ -97,6 +103,17 @@
           <button id="music-toggle" class="modal-btn"></button>
           <button id="sfx-toggle" class="modal-btn"></button>
           <button id="settings-close" class="modal-btn primary">关闭</button>
+        </div>
+      </div>
+
+      <!-- 关卡剧情简报 -->
+      <div id="story-screen" class="screen hidden">
+        <div class="menu-stars"></div>
+        <div class="menu-card">
+          <h2 id="story-title">章节标题</h2>
+          <p id="story-text" class="story-text"></p>
+          <div class="story-warning" id="story-warning"></div>
+          <button id="story-start" class="menu-btn">⚔️ 开始战斗</button>
         </div>
       </div>
 
