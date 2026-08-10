@@ -1,16 +1,16 @@
 :root {
   color-scheme: light;
-  /* 协调调色板：Playful Vibrance in Tower Defence Landscapes */
-  --bg: #8FD8FF;              /* 天蓝 */
-  --panel: #ffffff;            /* 白卡片 */
-  --panel-border: #6EB5FF;     /* 浅蓝边框 */
-  --accent: #FF6F61;           /* 珊瑚主色 */
-  --accent2: #FF9F43;          /* 橙 */
-  --gold: #FFC857;             /* 金黄 */
-  --danger: #E8554D;
+  /* 温暖田园调色板（王国保卫战启发）：无冷蓝 */
+  --bg: #FBF0D0;              /* 暖奶黄 */
+  --panel: #FFFDF6;            /* 暖白卡片 */
+  --panel-border: #E8D8A8;     /* 暖沙边 */
+  --accent: #E87A4A;           /* 暖橙主色 */
+  --accent2: #D95E38;          /* 深橙 */
+  --gold: #D9A83A;             /* 暖金 */
+  --danger: #C8403A;
   --ok: #4CAF50;
-  --text: #2D3E50;             /* 深灰蓝文字 */
-  --dim: #5A6A8A;
+  --text: #4A3A28;             /* 暖棕文字 */
+  --dim: #8A7A58;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -77,7 +77,7 @@ body {
 .tower-icon { width: 34px; height: 34px; margin: 0 auto 4px; border-radius: 50%; position: relative; }
 .tower-name { font-size: 12px; color: var(--text); }
 .tower-cost { font-size: 11px; color: var(--gold); }
-.tower-icon.pulse { background: radial-gradient(circle, #fff 0%, #6EB5FF 45%, #3a8ad0 100%); }
+.tower-icon.pulse { background: radial-gradient(circle, #fff 0%, #A8C8A0 45%, #6a9a5a 100%); }
 .tower-icon.missile { background: radial-gradient(circle, #ffe8c0 0%, #FF9F43 55%, #d06a1e 100%); }
 .tower-icon.beam { background: radial-gradient(circle, #ffe0dc 0%, #FF6F61 55%, #c8403a 100%); }
 .tower-icon.slow { background: radial-gradient(circle, #fff3d0 0%, #FFC857 55%, #d09a2a 100%); }
@@ -104,13 +104,13 @@ body {
 .screen {
   position: absolute; inset: 0; z-index: 20;
   display: flex; align-items: center; justify-content: center;
-  /* 柔和天空渐变：天蓝 → 淡青 → 奶黄（协调不刺眼） */
+  /* 温暖田园天空：奶黄 → 淡橙晚霞（无冷蓝） */
   background:
-    radial-gradient(ellipse at 20% 25%, rgba(110,181,255,0.30), transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(255,200,87,0.22), transparent 55%),
-    radial-gradient(ellipse at 70% 80%, rgba(255,111,97,0.18), transparent 60%),
-    radial-gradient(ellipse at 30% 85%, rgba(143,216,255,0.28), transparent 55%),
-    linear-gradient(180deg, #8FD8FF 0%, #A8D8FF 35%, #C9E8FF 65%, #FFE8C9 100%);
+    radial-gradient(ellipse at 20% 25%, rgba(255,235,190,0.5), transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(255,215,160,0.4), transparent 55%),
+    radial-gradient(ellipse at 70% 80%, rgba(210,230,170,0.35), transparent 60%),
+    radial-gradient(ellipse at 30% 85%, rgba(255,205,150,0.4), transparent 55%),
+    linear-gradient(180deg, #FDF3D8 0%, #FBF0D0 40%, #FDE8C0 70%, #F5D8A8 100%);
 }
 /* 菜单上的星星闪烁动画（密集星点） */
 .menu-stars {
@@ -189,7 +189,7 @@ body {
 }
 
 /* ===== 新塔图标 ===== */
-.tower-icon.frost { background: radial-gradient(circle, #f0fbff 0%, #8FD8FF 55%, #4a9cd0 100%); }
+.tower-icon.frost { background: radial-gradient(circle, #f0fbe8 0%, #A8D8A0 55%, #5a9a5a 100%); }
 .tower-icon.storm { background: radial-gradient(circle, #fff8d0 0%, #FFE27A 55%, #d0b030 100%); }
 .tower-icon.amp   { background: radial-gradient(circle, #ffe8ec 0%, #FF8FA3 55%, #d05a70 100%); }
 .tower-icon.plasma { background: radial-gradient(circle, #ffdcd8 0%, #E8554D 55%, #b03a34 100%); }
