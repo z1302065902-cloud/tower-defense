@@ -5,6 +5,7 @@ import {
   TOWER_DEFS, ENEMY_DEFS, waveFor, basePosition,
   type MapDef, type TowerType, type EnemyType,
 } from './data'
+import { TOWER_MODEL_MAP, ENEMY_MODEL_MAP, spawnModel, preloadAll } from './assets'
 
 export interface TowerInstance {
   def: keyof typeof TOWER_DEFS
@@ -155,6 +156,9 @@ export class TowerGame {
 
     // 交互
     this.disposeFn = this.bindEvents(events)
+
+    // 预加载真实模型（后台拉取，玩家放置时立即可用）
+    preloadAll()
 
     // 开始循环
     this.loop()
@@ -416,6 +420,8 @@ export class TowerGame {
     t.mesh = this.towerMesh(t.def, t.level)
     t.mesh.position.set(t.x, 0, t.z)
     this.group.add(t.mesh)
+    // 升级后重新挂真实模型
+    void this.mountTowerModel(t)
     this.showPanel(t)
     this.events.onCredits(this.credits)
   }
@@ -536,9 +542,33 @@ export class TowerGame {
       def: type, x: p.x, z: p.z, level: 1, cooldown: 0, mesh, invested: def.cost, flashT: 0,
     }
     this.towers.push(t)
+    // 异步换真实模型（失败保留几何体）
+    void this.mountTowerModel(t)
     this.events.onCredits(this.credits)
     // 继续建造同类型（便于连放）
     this.updateGhost()
+  }
+
+  /** 异步把塔的几何体换成 Kenney 真实模型 */
+  private async mountTowerModel(t: TowerInstance) {
+    const map = TOWER_MODEL_MAP[t.def]
+    if (!map) return
+    const body = await spawnModel(map.body, TOWER_DEFS[t.def].color)
+    if (!body) return
+    // 移除旧几何体子节点（保留外壳 mesh 用于定位）
+    while (t.mesh.children.length) t.mesh.remove(t.mesh.children[0])
+    body.scale.setScalar(map.scale || 1)
+    body.position.y = 0.55
+    t.mesh.add(body)
+    // 挂武器（若有）
+    if (map.weapon) {
+      const w = await spawnModel(map.weapon, TOWER_DEFS[t.def].color)
+      if (w) {
+        w.scale.setScalar((map.scale || 1) * 0.9)
+        w.position.y = 1.5
+        t.mesh.add(w)
+      }
+    }
   }
 
   private updateGhost() {
@@ -655,10 +685,11 @@ export class TowerGame {
       const pos2 = curve.getPointAt(t2)
       en.mesh.lookAt(pos2.x, en.mesh.position.y, pos2.z)
       // 减速视觉（复用材质避免每帧新建）
-      const body = en.mesh.children[0] as THREE.Mesh
-      const bodyMat = body.material as THREE.MeshStandardMaterial
-      if (en.slowT > 0) bodyMat.color.setHex(0x3dd6d0)
-      else bodyMat.color.setHex(ENEMY_DEFS[en.def].color)
+      const bodyMat = this.enemyBodyMaterial(en)
+      if (bodyMat) {
+        if (en.slowT > 0) bodyMat.color.setHex(0x3dd6d0)
+        else bodyMat.color.setHex(ENEMY_DEFS[en.def].color)
+      }
     }
     this.enemies = this.enemies.filter((e) => !e.dead)
 
@@ -919,6 +950,35 @@ export class TowerGame {
       slowT: 0, slowFactor: 1, reward: def.reward, damage: def.damage,
       mesh, dead: false, hitFlash: 0, healT: 0,
     })
+    // 异步换真实 UFO 模型
+    void this.mountEnemyModel(mesh, type)
+  }
+
+  /** 异步把敌人几何体换成 Kenney UFO 模型 */
+  private async mountEnemyModel(mesh: THREE.Object3D, type: EnemyType) {
+    const map = ENEMY_MODEL_MAP[type]
+    if (!map) return
+    const model = await spawnModel(map.model, ENEMY_DEFS[type].color)
+    if (!model) return
+    // 移除旧几何体（保留外壳用于定位/朝向）
+    while (mesh.children.length) mesh.remove(mesh.children[0])
+    model.scale.setScalar(map.scale)
+    model.position.y = 0
+    mesh.add(model)
+  }
+
+  /** 找到敌人的第一个可染色材质（遍历模型层级） */
+  private enemyBodyMaterial(en: EnemyInstance): THREE.MeshStandardMaterial | null {
+    let found: THREE.MeshStandardMaterial | null = null
+    en.mesh.traverse((child) => {
+      if (found) return
+      const mesh = child as THREE.Mesh
+      if (mesh.isMesh && mesh.material) {
+        const m = mesh.material as any
+        if (m && 'color' in m) found = m
+      }
+    })
+    return found
   }
 
   private updateFx(dt: number) {
@@ -926,9 +986,10 @@ export class TowerGame {
     for (const en of this.enemies) {
       if (en.hitFlash > 0) {
         en.hitFlash -= dt
-        const body = en.mesh.children[0] as THREE.Mesh
-        if (en.hitFlash > 0) (body.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.2
-        else (body.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.25
+        const bodyMat = this.enemyBodyMaterial(en)
+        if (bodyMat) {
+          bodyMat.emissiveIntensity = en.hitFlash > 0 ? 1.2 : 0.25
+        }
       }
     }
   }
