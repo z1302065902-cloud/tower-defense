@@ -24,7 +24,7 @@ export interface TowerDef {
 export const TOWER_DEFS: Record<TowerType, TowerDef> = {
   // 我方塔：暖色/友好色系（浅蓝、珊瑚、橙、金黄 为一个协调家族）
   pulse: {
-    type: 'pulse', name: '脉冲炮', cost: 50, range: 8, fireRate: 2, damage: 10, color: 0x6EB5FF,
+    type: 'pulse', name: '脉冲炮', cost: 50, range: 8, fireRate: 2, damage: 10, color: 0x8FC87F,
     desc: '快速单目标，性价比之选', upgradeMultiplier: 1.6, maxLevel: 4,
   },
   missile: {
@@ -40,7 +40,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     slowFactor: 0.55, slowDuration: 1.8, desc: '减速范围内敌人', upgradeMultiplier: 1.4, maxLevel: 3,
   },
   frost: {
-    type: 'frost', name: '冰霜塔', cost: 120, range: 7, fireRate: 0, damage: 0, color: 0x8FD8FF,
+    type: 'frost', name: '冰霜塔', cost: 120, range: 7, fireRate: 0, damage: 0, color: 0xA8D8A0,
     slowFactor: 0.35, slowDuration: 2.5, desc: '大范围强减速', upgradeMultiplier: 1.45, maxLevel: 4,
   },
   storm: {
