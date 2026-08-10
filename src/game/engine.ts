@@ -255,22 +255,35 @@ export class TowerGame {
     this.starParticles = nearPts
   }
 
-  /** 漂浮的空间站模块作为背景装饰（缓慢旋转漂浮） */
+  /** 漂浮的空间站模块作为背景装饰（远处小尺寸，缓慢旋转漂浮，不遮挡视角） */
   private buildSpaceDecor() {
     const names = ['corridor', 'room-small', 'room-large', 'gate']
+    // 模型越大，基准缩放越小
+    const sizeMul: Record<string, number> = {
+      corridor: 0.45, 'room-small': 0.5, 'room-large': 0.32, gate: 0.45,
+    }
+    // 远处高空散布（半径 28-38，避开相机 z=22 平面附近）
     const positions: [number, number, number][] = [
-      [-20, 8, -16], [20, 12, -18], [-18, 16, 12], [22, 6, 18],
-      [0, 20, -22], [16, 18, 4], [-24, 10, 2], [8, 22, 20],
+      [-30, 22, -26], [32, 28, -20], [-26, 34, 4], [34, 20, 12],
+      [0, 36, -30], [26, 34, -10], [-36, 26, 10], [18, 36, 14],
     ]
     names.forEach((n, i) => {
       const pos = positions[i % positions.length]
       void spawnModel(n, undefined, 'space').then((m) => {
         if (!m) return
         m.position.set(pos[0], pos[1], pos[2])
-        const s = 0.8 + Math.random() * 0.6
+        const s = (sizeMul[n] ?? 0.4) * (0.85 + Math.random() * 0.3)
         m.scale.setScalar(s)
         m.rotation.y = Math.random() * Math.PI * 2
-        ;(m as any).userData = { spin: (Math.random() - 0.5) * 0.15, floatAmp: 0.3 + Math.random() * 0.4, floatSpeed: 0.3 + Math.random() * 0.4, baseY: pos[1] }
+        // 关闭阴影，避免远处建筑投下大片阴影遮住战场
+        m.traverse((ch) => {
+          if ((ch as THREE.Mesh).isMesh) {
+            const mesh = ch as THREE.Mesh
+            mesh.castShadow = false
+            mesh.receiveShadow = false
+          }
+        })
+        ;(m as any).userData = { spin: (Math.random() - 0.5) * 0.08, floatAmp: 0.2 + Math.random() * 0.25, floatSpeed: 0.2 + Math.random() * 0.3, baseY: pos[1] }
         this.decorObjects.push(m)
         this.scene.add(m)
       })
