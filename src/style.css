@@ -103,8 +103,37 @@ body {
 .screen {
   position: absolute; inset: 0; z-index: 20;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(10,16,34,0.7), rgba(5,7,15,0.92));
-  backdrop-filter: blur(4px);
+  /* 深空渐变背景：彩色星云色 + 半透明，不再是纯黑 */
+  background:
+    radial-gradient(ellipse at 25% 25%, rgba(79,209,255,0.16), transparent 60%),
+    radial-gradient(ellipse at 75% 20%, rgba(255,93,162,0.12), transparent 55%),
+    radial-gradient(ellipse at 70% 80%, rgba(159,124,255,0.18), transparent 60%),
+    radial-gradient(ellipse at 30% 85%, rgba(255,209,102,0.10), transparent 55%),
+    linear-gradient(180deg, #0a1230 0%, #0e1738 45%, #0a1228 75%, #070b1c 100%);
+}
+/* 菜单上的星星闪烁动画（密集星点） */
+.menu-stars {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 28%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(2px 2px at 23% 63%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 31% 42%, rgba(255,209,102,0.8), transparent),
+    radial-gradient(2px 2px at 44% 18%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1.5px 1.5px at 52% 76%, rgba(159,124,255,0.8), transparent),
+    radial-gradient(1px 1px at 61% 35%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(2px 2px at 73% 58%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1.5px 1.5px at 82% 22%, rgba(79,209,255,0.9), transparent),
+    radial-gradient(1px 1px at 90% 68%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 8% 88%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 36% 91%, rgba(255,93,162,0.7), transparent),
+    radial-gradient(2px 2px at 66% 88%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 95% 12%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1.5px 1.5px at 48% 52%, rgba(255,255,255,0.4), transparent);
+  animation: starTwinkle 4s ease-in-out infinite;
+}
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
 }
 .menu-card {
   width: min(420px, 92vw); padding: 28px 26px;
