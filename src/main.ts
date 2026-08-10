@@ -50,7 +50,7 @@ function buildMenu() {
 
   $('menu-full-text').textContent = full
     ? '完整版 · 已解锁全部关卡与科技树'
-    : `试玩版 · 免费体验第 1 关 · 完整版 ¥8 解锁全部 ${MAPS.length} 关`
+    : `试玩版 · 免费体验第 1 关 · 完整版 $1 解锁全部 ${MAPS.length} 关`
 }
 
 // ===== 科技树面板 =====
