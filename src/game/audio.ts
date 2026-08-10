@@ -54,7 +54,7 @@ export function setMusicOn(v: boolean) {
   musicOn = v
   if (musicGain) musicGain.gain.value = v ? 0.28 : 0
   if (musicEls.length) {
-    if (v) void musicEls[currentMusicIdx].play().catch(() => {})
+    if (v) void musicEls[currentIdx].play().catch(() => {})
     else musicEls.forEach((a) => a.pause())
   }
   savePrefs()
@@ -115,18 +115,25 @@ export function sfxLose() {
   ;[330, 262, 196].forEach((f, i) => setTimeout(() => playTone(f, 0.4, 'sawtooth', 0.25), i * 200))
 }
 
-// ===== BGM：mp3 循环播放（吉卜力风战斗曲） =====
+// ===== BGM：mp3 循环播放（两套场景音乐） =====
+// 菜单/大厅：menu.mp3 + menu2.mp3（轻柔）
+// 战斗：battle.mp3 + battle2.mp3（激烈）
 const BASE = (import.meta as any).env?.BASE_URL || '/'
-const MUSIC_FILES = ['battle.mp3', 'battle2.mp3'] // 两首轮换循环
+
+type MusicScene = 'menu' | 'battle'
+const SCENE_TRACKS: Record<MusicScene, string[]> = {
+  menu: ['menu.mp3', 'menu2.mp3'],
+  battle: ['battle.mp3', 'battle2.mp3'],
+}
 
 let musicEls: HTMLAudioElement[] = []
-let currentMusicIdx = 0
+let currentScene: MusicScene = 'menu'
+let currentIdx = 0
 
 function startMusic() {
   if (!musicOn || musicEls.length) return
   try {
-    // 创建两个 Audio 元素，一首播完自动接下一首，循环轮换
-    musicEls = MUSIC_FILES.map((f) => {
+    musicEls = (SCENE_TRACKS[currentScene] || []).map((f) => {
       const a = new Audio(`${BASE}assets/music/${f}`)
       a.loop = false
       a.volume = 0.45
@@ -134,17 +141,59 @@ function startMusic() {
       return a
     })
     const playNext = () => {
-      const next = musicEls[currentMusicIdx]
-      currentMusicIdx = (currentMusicIdx + 1) % musicEls.length
+      currentIdx = (currentIdx + 1) % musicEls.length
       if (musicOn) {
-        void next.play().catch(() => {})
+        void musicEls[currentIdx].play().catch(() => {})
       }
     }
-    // 每首播完（ended）自动播下一首 → 循环轮换
     musicEls.forEach((a) => a.addEventListener('ended', playNext))
-    // 开始第一首
     void musicEls[0].play().catch(() => {})
   } catch {
     // mp3 不可用时静默（游戏不崩）
+  }
+}
+
+/** 切换音乐场景：菜单/大厅 ↔ 战斗。两套曲目交替循环，切换时淡出淡入。 */
+export function setMusicScene(scene: MusicScene) {
+  if (scene === currentScene && musicEls.length) return
+  currentScene = scene
+  if (!musicEls.length) {
+    // 还没初始化（等首次交互），只记场景，稍后 startMusic 用
+    return
+  }
+  // 淡出当前
+  const old = musicEls
+  old.forEach((a) => {
+    const fade = setInterval(() => {
+      a.volume = Math.max(0, a.volume - 0.05)
+      if (a.volume <= 0) {
+        clearInterval(fade)
+        a.pause()
+      }
+    }, 40)
+  })
+  // 切换曲目
+  currentIdx = 0
+  musicEls = (SCENE_TRACKS[scene] || []).map((f) => {
+    const a = new Audio(`${BASE}assets/music/${f}`)
+    a.loop = false
+    a.volume = 0
+    a.preload = 'auto'
+    return a
+  })
+  const playNext = () => {
+    currentIdx = (currentIdx + 1) % musicEls.length
+    if (musicOn) void musicEls[currentIdx].play().catch(() => {})
+  }
+  musicEls.forEach((a) => a.addEventListener('ended', playNext))
+  if (musicOn) {
+    void musicEls[0].play().catch(() => {})
+    // 淡入
+    const t = setInterval(() => {
+      if (musicEls[0]) {
+        musicEls[0].volume = Math.min(0.45, musicEls[0].volume + 0.05)
+        if (musicEls[0].volume >= 0.45) clearInterval(t)
+      } else clearInterval(t)
+    }, 60)
   }
 }
