@@ -112,19 +112,21 @@ export class TowerGame {
     this.camera.lookAt(0, 0, 0)
 
     this.scene.add(this.group)
-    this.scene.fog = new THREE.FogExp2(0x04060f, 0.016)
-    this.scene.background = new THREE.Color(0x04060f)
+    // 轻雾：远处可见但柔和（密度从 0.016 降到 0.007）
+    this.scene.fog = new THREE.FogExp2(0x05070f, 0.007)
+    // 程序化星云天空背景（非纯黑）
+    this.buildNebulaBackground()
 
     // 灯光
-    const hemi = new THREE.HemisphereLight(0x8899ff, 0x0c1428, 0.75)
+    const hemi = new THREE.HemisphereLight(0x8899ff, 0x14204a, 0.9)
     this.scene.add(hemi)
-    const dir = new THREE.DirectionalLight(0xfff2e0, 1.2)
+    const dir = new THREE.DirectionalLight(0xfff2e0, 1.3)
     dir.position.set(10, 20, 8)
     dir.castShadow = true
     dir.shadow.mapSize.set(1024, 1024)
     this.scene.add(dir)
     // 冷色补光
-    const rim = new THREE.PointLight(0x4fd1ff, 0.5, 50)
+    const rim = new THREE.PointLight(0x4fd1ff, 0.6, 50)
     rim.position.set(-12, 8, -10)
     this.scene.add(rim)
 
@@ -216,6 +218,70 @@ export class TowerGame {
   private starParticles: THREE.Points | null = null
   private decorObjects: THREE.Object3D[] = []
   private explosionParticles: { mesh: THREE.Points; vel: THREE.Vector3[]; life: number }[] = []
+  private nebulaBg: THREE.Mesh | null = null
+
+  /**
+   * 程序化星云天空背景：Canvas 生成深蓝紫渐变 + 彩色星云光斑 + 星星，
+   * 作为场景背景（大球反向贴图），随相机移动，替换纯黑。
+   */
+  private buildNebulaBackground() {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1024
+    canvas.height = 512
+    const ctx = canvas.getContext('2d')!
+    // 深空渐变底色
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
+    grad.addColorStop(0, '#0a1030')
+    grad.addColorStop(0.45, '#101838')
+    grad.addColorStop(0.6, '#0c1430')
+    grad.addColorStop(1, '#060a1c')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    // 彩色星云光斑（多层柔光圆形）
+    const blobs: { x: number; y: number; r: number; color: string; alpha: number }[] = [
+      { x: 200, y: 160, r: 140, color: '79,209,255', alpha: 0.20 },  // 蓝
+      { x: 620, y: 220, r: 160, color: '159,124,255', alpha: 0.18 }, // 紫
+      { x: 860, y: 140, r: 120, color: '255,93,162', alpha: 0.15 },  // 粉
+      { x: 400, y: 320, r: 100, color: '255,209,102', alpha: 0.12 }, // 金
+      { x: 780, y: 380, r: 110, color: '61,214,208', alpha: 0.14 },  // 青
+      { x: 120, y: 400, r: 90, color: '255,138,61', alpha: 0.10 },   // 橙
+    ]
+    for (const b of blobs) {
+      const rg = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r)
+      rg.addColorStop(0, `rgba(${b.color},${b.alpha})`)
+      rg.addColorStop(0.5, `rgba(${b.color},${b.alpha * 0.45})`)
+      rg.addColorStop(1, `rgba(${b.color},0)`)
+      ctx.fillStyle = rg
+      ctx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2)
+    }
+
+    // 随机星星
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * canvas.width
+      const y = Math.random() * canvas.height
+      const size = Math.random() < 0.85 ? 1 : Math.random() < 0.5 ? 1.5 : 2.5
+      const bright = 0.4 + Math.random() * 0.6
+      const warm = Math.random() < 0.3
+      ctx.fillStyle = warm
+        ? `rgba(255,240,200,${bright})`
+        : `rgba(220,235,255,${bright})`
+      ctx.beginPath()
+      ctx.arc(x, y, size / 2, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.colorSpace = THREE.SRGBColorSpace
+    // 大球反向贴图（相机在里面，看到星云）
+    const bgGeo = new THREE.SphereGeometry(90, 32, 16)
+    const bgMat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false })
+    const bg = new THREE.Mesh(bgGeo, bgMat)
+    bg.position.set(0, 0, 0)
+    bg.renderOrder = -1
+    this.scene.add(bg)
+    this.nebulaBg = bg
+  }
 
   /** 多层动态星空：远近两层 + 缓慢旋转的星点 */
   private buildStarfield() {
@@ -262,28 +328,33 @@ export class TowerGame {
     const sizeMul: Record<string, number> = {
       corridor: 0.45, 'room-small': 0.5, 'room-large': 0.32, gate: 0.45,
     }
-    // 远处高空散布（半径 28-38，避开相机 z=22 平面附近）
+    // 中等距离高空散布（半径 18-26，能看见但不挡画面）
     const positions: [number, number, number][] = [
-      [-30, 22, -26], [32, 28, -20], [-26, 34, 4], [34, 20, 12],
-      [0, 36, -30], [26, 34, -10], [-36, 26, 10], [18, 36, 14],
+      [-22, 16, -18], [24, 20, -14], [-20, 24, 6], [25, 14, 10],
+      [2, 26, -22], [18, 22, -8], [-26, 18, 8], [14, 26, 12],
     ]
     names.forEach((n, i) => {
       const pos = positions[i % positions.length]
       void spawnModel(n, undefined, 'space').then((m) => {
         if (!m) return
         m.position.set(pos[0], pos[1], pos[2])
-        const s = (sizeMul[n] ?? 0.4) * (0.85 + Math.random() * 0.3)
+        const s = (sizeMul[n] ?? 0.4) * (0.9 + Math.random() * 0.3)
         m.scale.setScalar(s)
         m.rotation.y = Math.random() * Math.PI * 2
-        // 关闭阴影，避免远处建筑投下大片阴影遮住战场
+        // 关闭阴影 + 轻微自发光，让远处建筑在暗背景中显眼
         m.traverse((ch) => {
           if ((ch as THREE.Mesh).isMesh) {
             const mesh = ch as THREE.Mesh
             mesh.castShadow = false
             mesh.receiveShadow = false
+            const mat = mesh.material as any
+            if (mat && mat.emissive !== undefined) {
+              mat.emissive = new THREE.Color(0x223355)
+              mat.emissiveIntensity = 0.25
+            }
           }
         })
-        ;(m as any).userData = { spin: (Math.random() - 0.5) * 0.08, floatAmp: 0.2 + Math.random() * 0.25, floatSpeed: 0.2 + Math.random() * 0.3, baseY: pos[1] }
+        ;(m as any).userData = { spin: (Math.random() - 0.5) * 0.1, floatAmp: 0.3 + Math.random() * 0.3, floatSpeed: 0.25 + Math.random() * 0.35, baseY: pos[1] }
         this.decorObjects.push(m)
         this.scene.add(m)
       })
@@ -312,6 +383,11 @@ export class TowerGame {
   /** 更新动画：星空漂移、装饰漂浮旋转、爆炸粒子、敌人/塔动画 */
   private animate(dt: number) {
     const t = this.time
+    // 星云背景缓慢旋转（跟随相机，制造空间流动感）
+    if (this.nebulaBg) {
+      this.nebulaBg.rotation.y += dt * 0.004
+      this.nebulaBg.rotation.z += dt * 0.001
+    }
     // 星空缓慢旋转
     if (this.starParticles) {
       this.starParticles.rotation.y += dt * 0.01
