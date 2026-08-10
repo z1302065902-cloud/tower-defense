@@ -40,6 +40,11 @@ export function initAudio() {
 
 export function resumeAudio() {
   if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {})
+  // 首次用户交互时确保 mp3 音乐开始（浏览器自动播放限制）
+  if (musicOn && !musicEls.length) startMusic()
+  else if (musicOn && musicEls.length) {
+    musicEls.forEach((a) => { if (a.paused) void a.play().catch(() => {}) })
+  }
 }
 
 export function isMusicOn() { return musicOn }
@@ -48,6 +53,10 @@ export function isSfxOn() { return sfxOn }
 export function setMusicOn(v: boolean) {
   musicOn = v
   if (musicGain) musicGain.gain.value = v ? 0.28 : 0
+  if (musicEls.length) {
+    if (v) void musicEls[currentMusicIdx].play().catch(() => {})
+    else musicEls.forEach((a) => a.pause())
+  }
   savePrefs()
 }
 export function setSfxOn(v: boolean) {
@@ -106,65 +115,36 @@ export function sfxLose() {
   ;[330, 262, 196].forEach((f, i) => setTimeout(() => playTone(f, 0.4, 'sawtooth', 0.25), i * 200))
 }
 
-// ===== BGM：太空氛围循环 =====
-const CHORD_PROG = [
-  [130.8, 164.8, 196.0, 261.6], // Cm
-  [155.6, 185.0, 233.1, 311.1], // Eb
-  [110.0, 146.8, 164.8, 220.0], // F... 用 Ab/F
-  [146.8, 174.6, 220.0, 293.7], // Bb
-]
-const ARP_NOTES = [261.6, 329.6, 392.0, 523.3, 659.3, 783.9]
+// ===== BGM：mp3 循环播放（吉卜力风战斗曲） =====
+const BASE = (import.meta as any).env?.BASE_URL || '/'
+const MUSIC_FILES = ['battle.mp3', 'battle2.mp3'] // 两首轮换循环
 
-let musicTimer: ReturnType<typeof setInterval> | null = null
+let musicEls: HTMLAudioElement[] = []
+let currentMusicIdx = 0
 
 function startMusic() {
-  if (!ctx || !musicGain || !musicOn || musicTimer) return
-  let step = 0
-  const playChord = () => {
-    if (!ctx || !musicGain) return
-    const chord = CHORD_PROG[step % CHORD_PROG.length]
-    const t = ctx.currentTime
-    chord.forEach((f) => {
-      const osc = ctx!.createOscillator()
-      osc.type = 'sawtooth'
-      osc.frequency.value = f
-      const g = ctx!.createGain()
-      g.gain.setValueAtTime(0.0001, t)
-      g.gain.linearRampToValueAtTime(0.06, t + 0.6)
-      g.gain.linearRampToValueAtTime(0.0001, t + 3.6)
-      osc.connect(g).connect(musicGain!)
-      osc.start(t)
-      osc.stop(t + 3.8)
+  if (!musicOn || musicEls.length) return
+  try {
+    // 创建两个 Audio 元素，一首播完自动接下一首，循环轮换
+    musicEls = MUSIC_FILES.map((f) => {
+      const a = new Audio(`${BASE}assets/music/${f}`)
+      a.loop = false
+      a.volume = 0.45
+      a.preload = 'auto'
+      return a
     })
-    // 旋律 arp（轻）
-    const base = chord[0] * 2
-    for (let i = 0; i < 4; i++) {
-      const note = ARP_NOTES[(step * 4 + i) % ARP_NOTES.length]
-      const t2 = t + i * 0.45
-      const osc = ctx!.createOscillator()
-      osc.type = 'sine'
-      osc.frequency.value = note
-      const g = ctx!.createGain()
-      g.gain.setValueAtTime(0.0001, t2)
-      g.gain.linearRampToValueAtTime(0.035, t2 + 0.05)
-      g.gain.linearRampToValueAtTime(0.0001, t2 + 0.4)
-      osc.connect(g).connect(musicGain!)
-      osc.start(t2)
-      osc.stop(t2 + 0.45)
+    const playNext = () => {
+      const next = musicEls[currentMusicIdx]
+      currentMusicIdx = (currentMusicIdx + 1) % musicEls.length
+      if (musicOn) {
+        void next.play().catch(() => {})
+      }
     }
-    // 低频贝斯
-    const bass = ctx!.createOscillator()
-    bass.type = 'sine'
-    bass.frequency.value = base
-    const bg = ctx!.createGain()
-    bg.gain.setValueAtTime(0.0001, t)
-    bg.gain.linearRampToValueAtTime(0.05, t + 0.3)
-    bg.gain.linearRampToValueAtTime(0.0001, t + 3.4)
-    bass.connect(bg).connect(musicGain!)
-    bass.start(t)
-    bass.stop(t + 3.6)
-    step++
+    // 每首播完（ended）自动播下一首 → 循环轮换
+    musicEls.forEach((a) => a.addEventListener('ended', playNext))
+    // 开始第一首
+    void musicEls[0].play().catch(() => {})
+  } catch {
+    // mp3 不可用时静默（游戏不崩）
   }
-  playChord()
-  musicTimer = setInterval(playChord, 3800)
 }
