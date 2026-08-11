@@ -10,11 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/node": "^3.2.0",
+    "pg": "^8.13.0",
     "three": "^0.172.0"
   },
   "devDependencies": {
     "@types/three": "^0.172.0",
     "typescript": "^5.6.0",
+    "vercel": "^58.9.1",
     "vite": "^6.0.0"
   }
 }
