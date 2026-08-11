@@ -9,6 +9,8 @@ export const AFDIAN_VERIFY_URL: string =
   '/api/afdian-verify'
 
 export function isFullVersion(): boolean {
+  // itch.io 完整版构建：构建时注入 VITE_FULL_VERSION=1 直接解锁
+  if ((import.meta as any).env?.VITE_FULL_VERSION === '1') return true
   try {
     return localStorage.getItem(STORAGE_KEY) === '1'
   } catch {

@@ -28,6 +28,11 @@ jobs:
       - run: npm run build
         env:
           VITE_AFDIAN_VERIFY_URL: https://tower-defense-orcin-seven.vercel.app/api/afdian-verify
+      # itch.io 完整版构建：直接解锁，部署到 /tower-defense/itch/ 子路径
+      - run: npx vite build --base=/tower-defense/itch/ --outDir=dist-itch
+        env:
+          VITE_FULL_VERSION: '1'
+      - run: mkdir -p dist/itch && cp -r dist-itch/* dist/itch/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
