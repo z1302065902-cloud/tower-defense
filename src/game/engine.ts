@@ -1421,7 +1421,7 @@ export class TowerGame {
     // 分裂的小怪从父位置附近生成，仍在轨道上
     mesh.position.set(x, 0.4, z)
     this.group.add(mesh)
-    const hpScale = 1 + (this.wave - 1) * 0.22 + this.wave * this.wave * 0.015
+    const hpScale = 1 + (this.wave - 1) * 0.16 + this.wave * this.wave * 0.006
     const hp = Math.round(def.hp * hpScale * 0.6) // 分裂体较弱
     const en: EnemyInstance = {
       def: type, hp, maxHp: hp, shield: def.shield ? Math.round(def.shield * hpScale * 0.6) : 0,
@@ -1454,7 +1454,7 @@ export class TowerGame {
     mesh.position.set(start.x, 0.4, start.z)
     this.group.add(mesh)
     // 波次成长：HP 随波次放大
-    const hpScale = 1 + (this.wave - 1) * 0.22 + this.wave * this.wave * 0.015
+    const hpScale = 1 + (this.wave - 1) * 0.16 + this.wave * this.wave * 0.006
     const hp = Math.round(def.hp * hpScale)
     const shield = def.shield ? Math.round(def.shield * hpScale) : 0
     const en: EnemyInstance = {
