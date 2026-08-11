@@ -69,6 +69,8 @@ export class TowerGame {
   map: MapDef
   pathLen = 0
   pathPoints: THREE.Vector3[] = []
+  // 缓存的路径曲线：避免每帧为每个敌人重建 CatmullRomCurve3（性能优化）
+  pathCurve: THREE.CatmullRomCurve3 | null = null
 
   towers: TowerInstance[] = []
   enemies: EnemyInstance[] = []
@@ -213,6 +215,7 @@ export class TowerGame {
 
     // 用曲线沿路径放置圆盘，形成连续土路
     const curve = new THREE.CatmullRomCurve3(this.pathPoints)
+    this.pathCurve = curve
     const discGeo = new THREE.CircleGeometry(1.35, 24)
     const mat = new THREE.MeshStandardMaterial({ color: PATH_COLOR, roughness: 0.85 })
     const samples = 60
@@ -1056,8 +1059,8 @@ export class TowerGame {
       }
     }
 
-    // 移动敌人
-    const curve = new THREE.CatmullRomCurve3(this.pathPoints)
+    // 移动敌人（复用缓存的路径曲线，避免每帧重建）
+    const curve = this.pathCurve || new THREE.CatmullRomCurve3(this.pathPoints)
     for (const en of this.enemies) {
       let sp = en.speed
       if (en.slowT > 0) {
@@ -1430,9 +1433,9 @@ export class TowerGame {
     this.attachHealthBar(en)
   }
 
-  /** 找离某个世界坐标最近的路径进度 */
+  /** 找离某个世界坐标最近的路径进度（复用缓存曲线） */
   private findNearestProgress(x: number, z: number): number {
-    const curve = new THREE.CatmullRomCurve3(this.pathPoints)
+    const curve = this.pathCurve || new THREE.CatmullRomCurve3(this.pathPoints)
     let bestT = 0
     let bestD = Infinity
     for (let i = 0; i <= 50; i++) {
