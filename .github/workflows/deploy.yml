@@ -24,12 +24,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # CHANGEME: 部署到 Vercel 后，把下面 URL 换成你的 Vercel 域名
-      # （例如 https://tower-defense-xxx.vercel.app/api/afdian-verify）
-      # 该变量为 public，无敏感信息；不设则前端回退到相对路径 /api/afdian-verify。
+      # 爱发电订单自助解锁验证端点（Vercel）。该变量为 public，无敏感信息。
       - run: npm run build
         env:
-          VITE_AFDIAN_VERIFY_URL: https://CHANGEME.vercel.app/api/afdian-verify
+          VITE_AFDIAN_VERIFY_URL: https://tower-defense-orcin-seven.vercel.app/api/afdian-verify
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
